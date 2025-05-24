@@ -8,7 +8,6 @@ import { PageLoading } from '@/components/ui/LoadingSpinner'
 import { TranscriptWizard } from '@/components/dashboard'
 import { supabase } from '@/lib/supabase'
 import { FileText, Clock, CheckCircle, AlertCircle } from 'lucide-react'
-import Link from 'next/link'
 import { formatRelativeTime } from '@/lib/utils'
 
 interface Transcript {
