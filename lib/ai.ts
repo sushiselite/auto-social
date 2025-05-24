@@ -48,7 +48,6 @@ export async function generateTweets(options: TweetGenerationOptions): Promise<s
   }
 
   prompt += `\n\nRequirements:
-- Each tweet must be under 280 characters
 - Make them engaging and shareable
 - Include relevant hashtags when appropriate
 - Vary the style slightly between the 3 options

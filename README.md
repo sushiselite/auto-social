@@ -1,6 +1,22 @@
-# Auto Social - AI-Powered Social Media Management
+# Tweetalytics - AI-Powered Tweet Optimization
 
-Remove the need for agencies with AI-powered tweet generation and scheduling.
+Transform your ideas into viral tweets with AI scoring and optimization. No guesswork, no stress, just data-driven content creation.
+
+## Features
+
+- **Voice to Tweet**: Record your thoughts and transform them into optimized tweets
+- **Viral Scoring**: AI-powered analysis to predict viral potential
+- **Multi-Modal Content**: Different optimization strategies for different content types
+- **Performance Tracking**: Monitor and improve your content performance
+- **Smart Publishing**: Schedule and automate your social media presence
+
+## Quick Start
+
+1. Clone the repository:
+```bash
+git clone https://github.com/your-username/tweetalytics.git
+cd tweetalytics
+```
 
 ## 🎯 Current Status
 
@@ -50,7 +66,7 @@ Remove the need for agencies with AI-powered tweet generation and scheduling.
 ### 1. Clone and Install
 ```bash
 git clone <repository-url>
-cd auto-social
+cd tweetalytics
 npm install
 ```
 

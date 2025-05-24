@@ -3,12 +3,13 @@ import React from 'react'
 import { Inter } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/components/providers/AuthProvider'
+import { Metadata } from 'next'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
-  title: 'Auto Social - Agent-Powered Social Media Management',
-  description: 'Remove the need for agencies with agent-powered tweet generation and scheduling',
+export const metadata: Metadata = {
+  title: 'Tweetalytics - AI-Powered Tweet Optimization',
+  description: 'Transform your ideas into viral tweets with AI scoring and optimization.',
 }
 
 export default function RootLayout({
@@ -22,7 +23,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <Toaster 
-            position="top-right"
+            position="bottom-center"
             toastOptions={{
               duration: 4000,
               style: {

@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 export async function ensureUserExists(userId: string, userEmail?: string, userName?: string) {
   try {
     // Check if user exists
-    const { data: existingUser, error: checkError } = await supabase
+    const { error: checkError } = await supabase
       .from('users')
       .select('id')
       .eq('id', userId)

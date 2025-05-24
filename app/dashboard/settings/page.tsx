@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { supabase } from '@/lib/supabase'
@@ -17,26 +17,20 @@ export default function SettingsPage() {
     timezone: 'UTC',
     defaultTone: 'professional'
   })
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (user) {
-      loadUserData()
-    }
-  }, [user])
+  const loadUserData = useCallback(async () => {
+    if (!user) return
 
-  const loadUserData = async () => {
     try {
       // Ensure user exists
-      if (user) {
-        await ensureUserExists(user.id, user.email, user.user_metadata?.name)
-      }
+      await ensureUserExists(user.id, user.email, user.user_metadata?.name)
 
       // Load username and preferences from database
       const { data, error } = await supabase
         .from('users')
         .select('username, preferences')
-        .eq('id', user?.id)
+        .eq('id', user.id)
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
@@ -52,8 +46,15 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error loading user data:', error)
+      toast.error('Failed to load user data')
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    loadUserData()
+  }, [loadUserData])
 
   const handleSave = async () => {
     if (!user) return

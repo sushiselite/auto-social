@@ -12,16 +12,19 @@ export type Database = {
         Row: {
           id: string
           username: string | null
+          preferences: Record<string, unknown> | null
           created_at: string
         }
         Insert: {
           id: string
           username?: string | null
+          preferences?: Record<string, unknown> | null
           created_at?: string
         }
         Update: {
           id?: string
           username?: string | null
+          preferences?: Record<string, unknown> | null
           created_at?: string
         }
       }
@@ -59,7 +62,11 @@ export type Database = {
           content: string | null
           status: string | null
           scheduled_time: string | null
-          performance: any | null
+          performance: Record<string, unknown> | null
+          viral_score: number | null
+          authenticity_score: number | null
+          engagement_score: number | null
+          quality_score: number | null
           created_at: string
         }
         Insert: {
@@ -69,7 +76,11 @@ export type Database = {
           content?: string | null
           status?: string | null
           scheduled_time?: string | null
-          performance?: any | null
+          performance?: Record<string, unknown> | null
+          viral_score?: number | null
+          authenticity_score?: number | null
+          engagement_score?: number | null
+          quality_score?: number | null
           created_at?: string
         }
         Update: {
@@ -79,7 +90,11 @@ export type Database = {
           content?: string | null
           status?: string | null
           scheduled_time?: string | null
-          performance?: any | null
+          performance?: Record<string, unknown> | null
+          viral_score?: number | null
+          authenticity_score?: number | null
+          engagement_score?: number | null
+          quality_score?: number | null
           created_at?: string
         }
       }

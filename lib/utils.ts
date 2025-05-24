@@ -10,6 +10,7 @@ export function formatDate(date: Date | string) {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
   })
 }
 
@@ -20,6 +21,7 @@ export function formatDateTime(date: Date | string) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
   })
 }
 
@@ -49,7 +51,7 @@ export function truncateText(text: string, length: number = 100) {
   return text.substring(0, length) + '...'
 }
 
-export function debounce<T extends (...args: any[]) => void>(
+export function debounce<T extends (...args: unknown[]) => void>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

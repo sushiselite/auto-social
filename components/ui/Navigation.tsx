@@ -6,15 +6,14 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { 
   Home, 
-  BarChart3, 
   Settings, 
   Mic,
   LogOut,
   Menu,
   X,
   Sparkles,
-  Bell,
-  User
+  User,
+  FileText
 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 
@@ -26,16 +25,16 @@ const navigation = [
     description: 'Overview and recent activity'
   },
   { 
-    name: 'Analytics', 
-    href: '/dashboard/analytics', 
-    icon: BarChart3,
-    description: 'Performance metrics and insights'
-  },
-  { 
     name: 'Training', 
     href: '/dashboard/training', 
     icon: Mic,
     description: 'Improve your AI agent'
+  },
+  { 
+    name: 'Documentation', 
+    href: '/docs', 
+    icon: FileText,
+    description: 'Learn about the app and scoring'
   },
   { 
     name: 'Settings', 
@@ -92,7 +91,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">Auto Social</h1>
+                <h1 className="text-lg font-bold text-gray-900">Tweetalytics</h1>
                 <p className="text-xs text-gray-500">AI-Powered</p>
               </div>
             </div>
@@ -209,12 +208,6 @@ export const TopBar = ({ title, subtitle, actions }: TopBarProps) => {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Notifications */}
-          <button className="relative p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-          </button>
-          
           {actions}
         </div>
       </div>

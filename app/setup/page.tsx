@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { CheckCircle, Copy, ExternalLink, Key, Database, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 
 export default function SetupPage() {
   const [copiedStep, setCopiedStep] = useState<string | null>(null)
@@ -153,9 +154,9 @@ NEXTAUTH_URL=http://localhost:3001`
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Setup Auto Social
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            Setup Tweetalytics
           </h1>
           <p className="text-xl text-gray-600">
             Get your AI-powered social media platform up and running in minutes
@@ -213,7 +214,7 @@ NEXTAUTH_URL=http://localhost:3001`
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                     <p className="text-sm text-blue-800">
                       <strong>Note:</strong> Claude API provides excellent content generation. 
-                      You'll need to add credits to your account for production use.
+                      You&apos;ll need to add credits to your account for production use.
                     </p>
                   </div>
                 )}
@@ -268,7 +269,7 @@ NEXTAUTH_URL=http://localhost:3001`
 
           {/* Final Steps */}
           <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">You're Almost Done!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">You&apos;re Almost Done!</h2>
             <div className="space-y-4">
               <div className="flex items-start">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
@@ -291,13 +292,13 @@ NEXTAUTH_URL=http://localhost:3001`
             </div>
 
             <div className="mt-8 text-center">
-              <a
+              <Link
                 href="/"
                 className="inline-flex items-center px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
               >
                 Go to Dashboard
                 <ExternalLink className="h-4 w-4 ml-2" />
-              </a>
+              </Link>
             </div>
           </div>
         </div>

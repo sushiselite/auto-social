@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { ensureUserExists } from '@/lib/user-utils'
+import { formatDate } from '@/lib/utils'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -21,29 +22,30 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      fetchExamples()
-    }
-  }, [user])
+  const fetchExamples = useCallback(async () => {
+    if (!user) return
 
-  const fetchExamples = async () => {
     try {
       const { data, error } = await supabase
         .from('training_examples')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
+
       setExamples(data || [])
     } catch (error) {
-      console.error('Error fetching training examples:', error)
+      console.error('Error fetching examples:', error)
       toast.error('Failed to load training examples')
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    fetchExamples()
+  }, [fetchExamples])
 
   const addExample = async () => {
     if (!newExample.trim()) return
@@ -180,7 +182,7 @@ export default function TrainingPage() {
                     </button>
                   </div>
                   <div className="mt-2 text-xs text-gray-400">
-                    Added {new Date(example.created_at).toLocaleDateString()}
+                    Added {formatDate(example.created_at)}
                   </div>
                 </div>
               ))}
@@ -192,7 +194,7 @@ export default function TrainingPage() {
           <div className="card bg-amber-50 border-amber-200">
             <h3 className="font-medium text-amber-900 mb-2">📝 Training Complete</h3>
             <p className="text-sm text-amber-800">
-              You've reached the maximum of 10 training examples. This should be enough for the agent to learn your writing style effectively!
+              You&apos;ve reached the maximum of 10 training examples. This should be enough for the agent to learn your writing style effectively!
             </p>
           </div>
         )}
@@ -206,6 +208,7 @@ export default function TrainingPage() {
               <li>• Make sure examples showcase your unique voice and style</li>
               <li>• Longer examples help the agent learn your communication patterns better</li>
               <li>• The agent will use these to match your tone and structure</li>
+              <li>• Tweet about challenges you&apos;re facing and how you&apos;re solving them</li>
             </ul>
           </div>
         )}

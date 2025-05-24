@@ -17,7 +17,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   subtitle, 
   actions 
 }) => {
-  const { user, loading } = useAuth()
+  const { loading } = useAuth()
   const pathname = usePathname()
 
   // Auto-generate title from pathname if not provided

@@ -6,7 +6,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { ArrowRight, Sparkles, Mic, Bot, BarChart3, Zap } from 'lucide-react'
+import { Mic, Zap, Sparkles, Bot, BarChart3 } from 'lucide-react'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -47,14 +47,22 @@ export default function Home() {
               <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-pink-400 rounded-lg flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="text-2xl font-bold text-white">Auto Social</span>
+              <span className="text-2xl font-bold text-white">Tweetalytics</span>
             </div>
-            <a
-              href="/setup"
-              className="text-white/80 hover:text-white transition-colors text-sm font-medium"
-            >
-              Setup Guide
-            </a>
+            <div className="flex items-center space-x-6">
+              <a
+                href="/docs"
+                className="text-white/80 hover:text-white transition-colors text-sm font-medium"
+              >
+                Documentation
+              </a>
+              <a
+                href="/setup"
+                className="text-white/80 hover:text-white transition-colors text-sm font-medium"
+              >
+                Setup Guide
+              </a>
+            </div>
           </div>
         </nav>
 
@@ -66,21 +74,21 @@ export default function Home() {
               <div className="text-center lg:text-left">
                 <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white/90 text-sm font-medium mb-6">
                   <Zap className="w-4 h-4 mr-2" />
-                  Agent-Powered Social Media
+                  AI-Powered Tweet Optimization
                 </div>
                 
                 <h1 className="text-5xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-                  Say It.
+                  Think It.
                   <br />
                   <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                     Tweet It.
                   </span>
                   <br />
-                  Grow It.
+                  Scale It.
                 </h1>
                 
                 <p className="text-xl text-white/80 mb-8 max-w-lg">
-                  Transform your voice into viral tweets with Claude agent. No agencies, no stress, just smart social media automation.
+                  Transform your ideas into viral tweets with AI scoring. No guesswork, no stress, just data-driven content optimization.
                 </p>
 
                 {/* Features grid */}
@@ -91,7 +99,7 @@ export default function Home() {
                     </div>
                     <div>
                       <h3 className="text-white font-semibold">Voice to Tweet</h3>
-                      <p className="text-white/60 text-sm">Record, transcribe, generate</p>
+                      <p className="text-white/60 text-sm">Record, transcribe, optimize</p>
                     </div>
                   </div>
                   
@@ -100,8 +108,8 @@ export default function Home() {
                       <Bot className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-white font-semibold">Smart Agent</h3>
-                      <p className="text-white/60 text-sm">Learns your unique style</p>
+                      <h3 className="text-white font-semibold">Viral Scoring</h3>
+                      <p className="text-white/60 text-sm">AI-powered optimization</p>
                     </div>
                   </div>
                   
@@ -110,8 +118,8 @@ export default function Home() {
                       <BarChart3 className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-white font-semibold">Auto Analytics</h3>
-                      <p className="text-white/60 text-sm">Track performance</p>
+                      <h3 className="text-white font-semibold">Performance Tracking</h3>
+                      <p className="text-white/60 text-sm">Monitor and improve</p>
                     </div>
                   </div>
                   
@@ -120,10 +128,21 @@ export default function Home() {
                       <Sparkles className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-white font-semibold">One-Click Publish</h3>
+                      <h3 className="text-white font-semibold">Smart Publishing</h3>
                       <p className="text-white/60 text-sm">Schedule & automate</p>
                     </div>
                   </div>
+                </div>
+                
+                {/* Documentation callout */}
+                <div className="text-center mt-6">
+                  <a 
+                    href="/docs"
+                    className="inline-flex items-center gap-2 text-white/80 hover:text-white text-sm transition-colors border-b border-white/30 hover:border-white/60 pb-1"
+                  >
+                    <span>📖</span>
+                    Read the story behind Tweetalytics and learn how our viral scoring works
+                  </a>
                 </div>
               </div>
 
@@ -214,12 +233,12 @@ export default function Home() {
         <div className="px-6 pb-12">
           <div className="max-w-4xl mx-auto text-center">
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
-              <h3 className="text-2xl font-bold text-white mb-4">Ready to revolutionize your social media?</h3>
-              <p className="text-white/70 mb-6">Join creators who've generated thousands of viral tweets with our agent</p>
+              <h3 className="text-2xl font-bold text-white mb-4">Ready to optimize your tweets?</h3>
+              <p className="text-white/70 mb-6">Join creators who&apos;ve generated viral content with our AI-powered scoring system</p>
               <div className="flex flex-wrap justify-center gap-4 text-sm text-white/60">
                 <span>✨ No credit card required</span>
                 <span>🚀 Setup in 2 minutes</span>
-                <span>🎯 10x your engagement</span>
+                <span>🎯 Data-driven optimization</span>
               </div>
             </div>
           </div>

@@ -58,6 +58,8 @@ export const ApiStatus: React.FC = () => {
           }
         }
       } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _unused = error
         anthropicStatus = {
           configured: false,
           working: false,
@@ -97,6 +99,8 @@ export const ApiStatus: React.FC = () => {
           }
         }
       } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _unused = error
         openaiStatus = {
           configured: false,
           working: false,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Mic, Plus, Square, Sparkles, Type, Volume2 } from 'lucide-react'
+import { Mic, Square, Sparkles, Type, Volume2 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { generateTweets, generateTweetFromVoice } from '@/lib/ai-client'
 import { supabase } from '@/lib/supabase'
@@ -11,13 +11,15 @@ import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 interface IdeaCaptureProps {
-  onNewTweets: (tweets: any[]) => void
+  onNewTweets: () => void
 }
 
 export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
   const { user } = useAuth()
   const [textIdea, setTextIdea] = useState('')
   const [tone, setTone] = useState('professional')
+  const [targetAudience, setTargetAudience] = useState('')
+  const [contentMode, setContentMode] = useState<'thoughtLeadership' | 'communityEngagement' | 'personalBrand' | 'valueFirst'>('thoughtLeadership')
   const [isRecording, setIsRecording] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [activeTab, setActiveTab] = useState<'text' | 'voice'>('text')
@@ -147,7 +149,7 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
       const trainingExamples = trainingData?.map(example => example.tweet_text) || []
       
       // Generate tweets from voice
-      const generatedTweets = await generateTweetFromVoice(audioFile, trainingExamples)
+      const result = await generateTweetFromVoice(audioFile, trainingExamples, targetAudience.trim() || undefined, contentMode)
       
       // Save the original idea
       const { data: ideaData, error: ideaError } = await supabase
@@ -163,22 +165,34 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
       if (ideaError) throw ideaError
 
       // Save generated tweets
-      const tweetsToInsert = generatedTweets.map(content => ({
+      const tweetsToInsert = result.tweets.map(scoredTweet => ({
         user_id: user?.id,
         idea_id: ideaData.id,
-        content,
-        status: 'generated'
+        content: scoredTweet.content,
+        status: 'generated',
+        viral_score: scoredTweet.viralScore,
+        authenticity_score: scoredTweet.scores.authenticity,
+        engagement_score: scoredTweet.scores.engagementPrediction,
+        quality_score: scoredTweet.scores.qualitySignals
       }))
 
-      const { data: tweetsData, error: tweetsError } = await supabase
+      const { error: tweetsError } = await supabase
         .from('tweets')
         .insert(tweetsToInsert)
-        .select()
 
       if (tweetsError) throw tweetsError
 
-      onNewTweets(tweetsData)
-      toast.success(`Generated ${generatedTweets.length} tweets from your voice memo! 🎉`)
+      onNewTweets()
+      
+      if (result.scoringEnabled) {
+        if (result.improvedByRegeneration && result.regenerationAttempts) {
+          toast.success(`Auto-optimized your tweet! Viral score: ${result.finalScore}/100 ✨ (improved through ${result.regenerationAttempts} regeneration${result.regenerationAttempts > 1 ? 's' : ''})`)
+        } else {
+          toast.success(`Generated tweet with viral score: ${result.tweets[0].viralScore}/100 ✨`)
+        }
+      } else {
+        toast.success(`Generated tweet from your idea! ✨`)
+      }
     } catch (error) {
       console.error('Error processing voice idea:', error)
       toast.error('Failed to generate tweets from voice')
@@ -206,10 +220,12 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
       const trainingExamples = trainingData?.map(example => example.tweet_text) || []
       
       // Generate tweets from text
-      const generatedTweets = await generateTweets({
+      const result = await generateTweets({
         idea: textIdea,
         trainingExamples,
-        tone
+        tone,
+        targetAudience: targetAudience.trim() || undefined,
+        contentMode
       })
       
       // Save the original idea
@@ -225,24 +241,36 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
 
       if (ideaError) throw ideaError
 
-      // Save generated tweets
-      const tweetsToInsert = generatedTweets.map(content => ({
+      // Save generated tweets with scoring data
+      const tweetsToInsert = result.tweets.map(scoredTweet => ({
         user_id: user?.id,
         idea_id: ideaData.id,
-        content,
-        status: 'generated'
+        content: scoredTweet.content,
+        status: 'generated',
+        viral_score: scoredTweet.viralScore,
+        authenticity_score: scoredTweet.scores.authenticity,
+        engagement_score: scoredTweet.scores.engagementPrediction,
+        quality_score: scoredTweet.scores.qualitySignals
       }))
 
-      const { data: tweetsData, error: tweetsError } = await supabase
+      const { error: tweetsError } = await supabase
         .from('tweets')
         .insert(tweetsToInsert)
-        .select()
 
       if (tweetsError) throw tweetsError
 
-      onNewTweets(tweetsData)
+      onNewTweets()
       setTextIdea('')
-      toast.success(`Generated ${generatedTweets.length} tweets from your idea! ✨`)
+      
+      if (result.scoringEnabled) {
+        if (result.improvedByRegeneration && result.regenerationAttempts) {
+          toast.success(`Auto-optimized your tweet! Viral score: ${result.finalScore}/100 ✨ (improved through ${result.regenerationAttempts} regeneration${result.regenerationAttempts > 1 ? 's' : ''})`)
+        } else {
+          toast.success(`Generated tweet with viral score: ${result.tweets[0].viralScore}/100 ✨`)
+        }
+      } else {
+        toast.success(`Generated tweet from your idea! ✨`)
+      }
     } catch (error) {
       console.error('Error processing text idea:', error)
       toast.error('Failed to generate tweets from text')
@@ -296,10 +324,93 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
       <div className="space-y-6">
         {activeTab === 'text' && (
           <div className="space-y-4 animate-fade-in">
+            {/* Content Mode Selection */}
+            <div className="form-group">
+              <label className="form-label">
+                Content Mode <span className="text-gray-400 font-normal">(optimized for Twitter algorithm)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setContentMode('thoughtLeadership')}
+                  disabled={isGenerating}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200',
+                    contentMode === 'thoughtLeadership'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">🎯</span>
+                    <span className="font-medium text-sm">Thought Leadership</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Industry insights & expertise</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setContentMode('communityEngagement')}
+                  disabled={isGenerating}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200',
+                    contentMode === 'communityEngagement'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">💬</span>
+                    <span className="font-medium text-sm">Community Engagement</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Questions & conversations</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setContentMode('personalBrand')}
+                  disabled={isGenerating}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200',
+                    contentMode === 'personalBrand'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">👤</span>
+                    <span className="font-medium text-sm">Personal Brand</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Authentic personal stories</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setContentMode('valueFirst')}
+                  disabled={isGenerating}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200',
+                    contentMode === 'valueFirst'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📚</span>
+                    <span className="font-medium text-sm">Value-First Content</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Tips & actionable advice</p>
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Each mode uses specialized prompts optimized for different engagement patterns and Tweepcreed scoring.
+              </p>
+            </div>
+
             {/* Text Input */}
             <div className="form-group">
               <label className="form-label">
-                What's on your mind?
+                What&apos;s on your mind?
               </label>
               <div className="relative">
                 <textarea
@@ -315,6 +426,30 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
                   {textIdea.length}/500
                 </div>
               </div>
+            </div>
+
+            {/* Target Audience Input */}
+            <div className="form-group">
+              <label className="form-label">
+                Target Audience <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <div className="relative">
+                <textarea
+                  value={targetAudience}
+                  onChange={(e) => setTargetAudience(e.target.value)}
+                  placeholder="Describe your target audience... e.g. 'Tech entrepreneurs and startup founders interested in AI and productivity tools'"
+                  className="input-field resize-none pr-20"
+                  rows={2}
+                  disabled={isGenerating}
+                  maxLength={200}
+                />
+                <div className="absolute bottom-2 right-3 text-xs text-gray-400">
+                  {targetAudience.length}/200
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Help us tailor the content for your specific audience to improve engagement and authenticity.
+              </p>
             </div>
 
             {/* Tone Selection */}
@@ -350,6 +485,86 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
 
         {activeTab === 'voice' && (
           <div className="space-y-6 animate-fade-in">
+            {/* Content Mode Selection for Voice */}
+            <div className="form-group">
+              <label className="form-label">
+                Content Mode <span className="text-gray-400 font-normal">(voice recording will be optimized for this mode)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setContentMode('thoughtLeadership')}
+                  disabled={isGenerating || isRecording}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200',
+                    contentMode === 'thoughtLeadership'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">🎯</span>
+                    <span className="font-medium text-sm">Thought Leadership</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Industry insights & expertise</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setContentMode('communityEngagement')}
+                  disabled={isGenerating || isRecording}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200',
+                    contentMode === 'communityEngagement'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">💬</span>
+                    <span className="font-medium text-sm">Community Engagement</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Questions & conversations</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setContentMode('personalBrand')}
+                  disabled={isGenerating || isRecording}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200',
+                    contentMode === 'personalBrand'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">👤</span>
+                    <span className="font-medium text-sm">Personal Brand</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Authentic personal stories</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setContentMode('valueFirst')}
+                  disabled={isGenerating || isRecording}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200',
+                    contentMode === 'valueFirst'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📚</span>
+                    <span className="font-medium text-sm">Value-First Content</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Tips & actionable advice</p>
+                </button>
+              </div>
+            </div>
+
             {/* Recording Interface */}
             <div className="text-center">
               <div className={cn(
@@ -395,14 +610,46 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
               </div>
             </div>
 
-            {/* Recording Tips */}
+            {/* Mode-Specific Recording Tips */}
             <div className="bg-indigo-50 rounded-lg p-4">
-              <h4 className="font-medium text-indigo-900 mb-2">💡 Recording Tips:</h4>
+              <h4 className="font-medium text-indigo-900 mb-3">
+                💡 Recording Tips for {contentMode === 'thoughtLeadership' ? 'Thought Leadership' : 
+                                     contentMode === 'communityEngagement' ? 'Community Engagement' :
+                                     contentMode === 'personalBrand' ? 'Personal Brand' : 'Value-First Content'}:
+              </h4>
               <ul className="text-sm text-indigo-700 space-y-1">
-                <li>• Speak clearly and at a normal pace</li>
-                <li>• Share your thoughts, opinions, or insights</li>
-                <li>• Mention any specific topics or themes</li>
-                <li>• Keep it under 2 minutes for best results</li>
+                {contentMode === 'thoughtLeadership' && (
+                  <>
+                    <li>• Share professional insights from your experience</li>
+                    <li>• Mention industry trends or observations</li>
+                    <li>• Express opinions on recent developments</li>
+                    <li>• Reference your expertise or background</li>
+                  </>
+                )}
+                {contentMode === 'communityEngagement' && (
+                  <>
+                    <li>• Ask open-ended questions to your audience</li>
+                    <li>• Share relatable daily experiences</li>
+                    <li>• Mention challenges you&apos;re curious about</li>
+                    <li>• Invite others to share their perspectives</li>
+                  </>
+                )}
+                {contentMode === 'personalBrand' && (
+                  <>
+                    <li>• Share personal stories or experiences</li>
+                    <li>• Talk about your journey or lessons learned</li>
+                    <li>• Be authentic about challenges and growth</li>
+                    <li>• Connect personal moments to broader themes</li>
+                  </>
+                )}
+                {contentMode === 'valueFirst' && (
+                  <>
+                    <li>• Share practical tips or actionable advice</li>
+                    <li>• Mention tools or resources you recommend</li>
+                    <li>• Explain step-by-step processes</li>
+                    <li>• Focus on helping others solve problems</li>
+                  </>
+                )}
               </ul>
             </div>
           </div>
