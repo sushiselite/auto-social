@@ -157,6 +157,7 @@ export default function Home() {
                     
                     <Auth
                       supabaseClient={supabase}
+                      view="sign_up"
                       appearance={{
                         theme: ThemeSupa,
                         variables: {
@@ -214,7 +215,7 @@ export default function Home() {
                       theme="dark"
                       providers={[]}
                       redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/dashboard`}
-                      showLinks={false}
+                      showLinks={true}
                     />
                     
                     <div className="mt-6 text-center">
