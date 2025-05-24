@@ -6,7 +6,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { Mic, Zap, Sparkles, Bot, BarChart3 } from 'lucide-react'
+import { Mic, Zap, Sparkles, Bot, BarChart3, Github } from 'lucide-react'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -61,6 +61,15 @@ export default function Home() {
                 className="text-white/80 hover:text-white transition-colors text-sm font-medium"
               >
                 Setup Guide
+              </a>
+              <a
+                href="https://github.com/sushiselite/auto-social"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-2 text-white/80 hover:text-white transition-colors text-sm font-medium"
+              >
+                <Github className="w-4 h-4" />
+                <span>GitHub</span>
               </a>
             </div>
           </div>
@@ -236,10 +245,21 @@ export default function Home() {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
               <h3 className="text-2xl font-bold text-white mb-4">Ready to optimize your tweets?</h3>
               <p className="text-white/70 mb-6">Join creators who&apos;ve generated viral content with our AI-powered scoring system</p>
-              <div className="flex flex-wrap justify-center gap-4 text-sm text-white/60">
+              <div className="flex flex-wrap justify-center gap-4 text-sm text-white/60 mb-6">
                 <span>✨ No credit card required</span>
                 <span>🚀 Setup in 2 minutes</span>
                 <span>🎯 Data-driven optimization</span>
+              </div>
+              <div className="flex justify-center">
+                <a
+                  href="https://github.com/sushiselite/auto-social"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg border border-white/20 text-white text-sm font-medium transition-colors"
+                >
+                  <Github className="w-4 h-4" />
+                  View Source Code
+                </a>
               </div>
             </div>
           </div>

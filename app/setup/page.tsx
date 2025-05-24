@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle, Copy, ExternalLink, Key, Database, Zap } from 'lucide-react'
+import { CheckCircle, Copy, ExternalLink, Key, Database, Zap, Download, Globe } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -17,6 +17,22 @@ export default function SetupPage() {
 
   const setupSteps = [
     {
+      id: 'clone',
+      title: 'Clone Repository & Install',
+      icon: Download,
+      description: 'Get the codebase and install dependencies',
+      steps: [
+        'Clone the repository: git clone https://github.com/sushiselite/auto-social.git',
+        'Navigate to the project: cd auto-social',
+        'Install dependencies: npm install',
+        'Copy environment file: cp env.example .env.local',
+      ],
+      commands: `git clone https://github.com/sushiselite/auto-social.git
+cd auto-social
+npm install
+cp env.example .env.local`
+    },
+    {
       id: 'supabase',
       title: 'Set up Supabase',
       icon: Database,
@@ -24,7 +40,9 @@ export default function SetupPage() {
       steps: [
         'Go to https://supabase.com and create a new project',
         'Copy your project URL and anon key from Settings > API',
-        'Run the SQL commands in the SQL Editor to create tables',
+        'Copy your service role key from Settings > API (keep this secret!)',
+        'Run the SQL commands in the SQL Editor to create tables and policies',
+        'Run the additional migrations for enhanced features',
       ],
       sqlCommands: `-- Users table
 CREATE TABLE users (
@@ -53,6 +71,10 @@ CREATE TABLE tweets (
   status TEXT CHECK (status IN ('generated', 'in_review', 'approved', 'published')) DEFAULT 'generated',
   scheduled_time TIMESTAMP WITH TIME ZONE,
   performance JSONB,
+  viral_score INTEGER,
+  authenticity_score INTEGER,
+  engagement_score INTEGER,
+  quality_score INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL
 );
 
@@ -90,14 +112,32 @@ CREATE POLICY "Users can manage own tweets" ON tweets FOR ALL USING (auth.uid() 
 CREATE POLICY "Users can manage own training examples" ON training_examples FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own feedback" ON tweet_feedback FOR ALL USING (auth.uid() = user_id);
 
+-- Add indexes for performance
+CREATE INDEX IF NOT EXISTS idx_tweets_viral_score ON tweets(viral_score);
+CREATE INDEX IF NOT EXISTS idx_tweets_authenticity_score ON tweets(authenticity_score);
+CREATE INDEX IF NOT EXISTS idx_tweets_engagement_score ON tweets(engagement_score);
+CREATE INDEX IF NOT EXISTS idx_tweets_quality_score ON tweets(quality_score);
+
+-- Add constraints to ensure scores are within 0-100 range
+ALTER TABLE tweets ADD CONSTRAINT viral_score_range CHECK (viral_score >= 0 AND viral_score <= 100);
+ALTER TABLE tweets ADD CONSTRAINT authenticity_score_range CHECK (authenticity_score >= 0 AND authenticity_score <= 100);
+ALTER TABLE tweets ADD CONSTRAINT engagement_score_range CHECK (engagement_score >= 0 AND engagement_score <= 100);
+ALTER TABLE tweets ADD CONSTRAINT quality_score_range CHECK (quality_score >= 0 AND quality_score <= 100);
+
 -- Function to handle user creation
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, username, created_at)
+  INSERT INTO public.users (id, username, preferences, created_at)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
+    '{
+      "defaultTone": "professional",
+      "timezone": "UTC",
+      "notifications": true,
+      "autoSchedule": false
+    }'::jsonb,
     NOW()
   );
   RETURN NEW;
@@ -120,7 +160,8 @@ CREATE TRIGGER on_auth_user_created
         'Create an account or sign in',
         'Go to API Keys section',
         'Create a new API key',
-        'Copy the key (starts with "sk-ant-")'
+        'Copy the key (starts with "sk-ant-")',
+        'Add credits to your account for production use'
       ]
     },
     {
@@ -133,7 +174,22 @@ CREATE TRIGGER on_auth_user_created
         'Create an account or sign in',
         'Go to API Keys section',
         'Create a new secret key',
-        'Copy the key (starts with "sk-")'
+        'Copy the key (starts with "sk-")',
+        'Add billing information for API usage'
+      ]
+    },
+    {
+      id: 'twitter',
+      title: 'Twitter API Setup (Optional)',
+      icon: Globe,
+      description: 'Set up Twitter API for direct posting (future feature)',
+      steps: [
+        'Visit https://developer.twitter.com',
+        'Apply for a developer account',
+        'Create a new app in the developer portal',
+        'Generate API keys and access tokens',
+        'Copy all required credentials',
+        'Note: This is for future direct posting functionality'
       ]
     }
   ]
@@ -147,9 +203,16 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 OPENAI_API_KEY=your_openai_api_key
 
+# Twitter API Configuration (Optional - for future features)
+TWITTER_API_KEY=your_twitter_api_key
+TWITTER_API_SECRET=your_twitter_api_secret
+TWITTER_ACCESS_TOKEN=your_twitter_access_token
+TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
+TWITTER_BEARER_TOKEN=your_twitter_bearer_token
+
 # App Configuration
 NEXTAUTH_SECRET=your_nextauth_secret
-NEXTAUTH_URL=http://localhost:3001`
+NEXTAUTH_URL=http://localhost:3000`
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -192,6 +255,24 @@ NEXTAUTH_URL=http://localhost:3001`
                   ))}
                 </div>
 
+                {step.id === 'clone' && (
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium text-gray-900">Commands</h3>
+                      <button
+                        onClick={() => copyToClipboard(step.commands!, 'clone')}
+                        className="flex items-center text-sm text-primary-600 hover:text-primary-700"
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        {copiedStep === 'clone' ? 'Copied!' : 'Copy Commands'}
+                      </button>
+                    </div>
+                    <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto">
+                      {step.commands}
+                    </pre>
+                  </div>
+                )}
+
                 {step.id === 'supabase' && (
                   <div className="mt-6">
                     <div className="flex items-center justify-between mb-2">
@@ -224,6 +305,15 @@ NEXTAUTH_URL=http://localhost:3001`
                     <p className="text-sm text-blue-800">
                       <strong>Note:</strong> Whisper API is very cost-effective for transcription. 
                       Most voice memos will cost less than $0.01 to transcribe.
+                    </p>
+                  </div>
+                )}
+
+                {step.id === 'twitter' && (
+                  <div className="mt-4 p-4 bg-purple-50 rounded-lg">
+                    <p className="text-sm text-purple-800">
+                      <strong>Optional:</strong> Twitter API credentials are not required for current functionality. 
+                      This is for future direct posting features. You can skip this step and the app will work perfectly for content creation and optimization.
                     </p>
                   </div>
                 )}
@@ -274,16 +364,16 @@ NEXTAUTH_URL=http://localhost:3001`
               <div className="flex items-start">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
                 <span className="text-gray-700">
-                  Create a <code className="bg-gray-100 px-2 py-1 rounded">.env.local</code> file in your project root
+                  Edit your <code className="bg-gray-100 px-2 py-1 rounded">.env.local</code> file with your actual API keys
                 </span>
               </div>
               <div className="flex items-start">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                <span className="text-gray-700">Add all the environment variables with your actual keys</span>
+                <span className="text-gray-700">Run <code className="bg-gray-100 px-2 py-1 rounded">npm run dev</code> to start the development server</span>
               </div>
               <div className="flex items-start">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                <span className="text-gray-700">Restart your development server</span>
+                <span className="text-gray-700">Visit <code className="bg-gray-100 px-2 py-1 rounded">http://localhost:3000</code> in your browser</span>
               </div>
               <div className="flex items-start">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
