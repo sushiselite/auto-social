@@ -20,7 +20,7 @@ export interface TweetGenerationOptions {
   tone?: string
   style?: string
   targetAudience?: string
-  contentMode?: 'thoughtLeadership' | 'communityEngagement' | 'personalBrand' | 'valueFirst'
+  contentMode?: 'thoughtLeadership' | 'communityEngagement' | 'personalBrand' | 'valueFirst' | 'engagementBait'
 }
 
 export interface TweetGenerationResponse {
@@ -91,7 +91,7 @@ export async function generateTweetFromVoice(
   audioFile: File, 
   trainingExamples?: string[], 
   targetAudience?: string,
-  contentMode?: 'thoughtLeadership' | 'communityEngagement' | 'personalBrand' | 'valueFirst'
+  contentMode?: 'thoughtLeadership' | 'communityEngagement' | 'personalBrand' | 'valueFirst' | 'engagementBait'
 ): Promise<TweetGenerationResponse> {
   try {
     const transcription = await transcribeAudio(audioFile)
@@ -140,6 +140,13 @@ function generateDemoTweets(options: TweetGenerationOptions): TweetGenerationRes
       humorous: `Life hack: ${idea.slice(0, 180)}... Why didn't I think of this sooner?`,
       educational: `How to: ${idea.slice(0, 200)}... Step by step breakdown`,
       inspirational: `Daily reminder: ${idea.slice(0, 180)}... You've got this`
+    },
+    engagementBait: {
+      professional: `Unpopular opinion: ${idea.slice(0, 180)}... Change my mind`,
+      casual: `Am I the only one who thinks: ${idea.slice(0, 170)}... Prove me wrong`,
+      humorous: `Controversial take: ${idea.slice(0, 180)}... Fight me in the comments`,
+      educational: `This might be controversial but: ${idea.slice(0, 170)}... Thoughts?`,
+      inspirational: `Bold statement: ${idea.slice(0, 180)}... Who agrees?`
     }
   }
 

@@ -21,6 +21,7 @@ interface Tweet {
   authenticity_score?: number
   engagement_score?: number
   quality_score?: number
+  is_engagement_bait?: boolean
 }
 
 export default function TweetsPage() {

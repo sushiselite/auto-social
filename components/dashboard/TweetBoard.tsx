@@ -48,6 +48,7 @@ interface Tweet {
   authenticity_score?: number
   engagement_score?: number
   quality_score?: number
+  is_engagement_bait?: boolean
 }
 
 interface TweetBoardProps {
@@ -131,14 +132,21 @@ const SimpleTweetCard = React.memo<SimpleTweetCardProps>(({
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.badgeColor}`}>
             {config.title}
           </span>
-          {tweet.viral_score && (
+          {tweet.viral_score ? (
             <div className="text-right">
               <div className={`text-lg font-bold ${getViralScoreColor(tweet.viral_score)}`}>
                 {tweet.viral_score}
               </div>
               <div className="text-xs text-gray-500">viral score</div>
             </div>
-          )}
+          ) : tweet.is_engagement_bait ? (
+            <div className="text-right">
+              <div className="text-lg font-bold text-red-500">
+                😈
+              </div>
+              <div className="text-xs text-red-500">engagement bait</div>
+            </div>
+          ) : null}
         </div>
 
         {/* Tweet content preview */}

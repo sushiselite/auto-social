@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { rankTweetsByViralPotential } from '@/lib/viral-scoring'
+import { rankTweetsByViralPotential, ScoredTweet } from '@/lib/viral-scoring'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -140,6 +140,50 @@ ENGAGEMENT STRATEGY:
       "Quick productivity hack: Use the 2-minute rule. If something takes less than 2 minutes, do it immediately instead of adding it to your to-do list",
       "Best free tools for new startups: Notion for docs, Figma for design, Supabase for backend, Vercel for deployment. You can build an MVP for $0",
       "When presenting ideas to executives: Start with the business impact, then explain the solution. They care about outcomes, not technical details"
+    ]
+  },
+
+  engagementBait: {
+    name: "Engagement Bait",
+    description: "Controversial and provocative content designed for maximum engagement",
+    promptTemplate: `CONTENT MODE: ENGAGEMENT BAIT
+Your goal is to create highly provocative, controversial content that generates maximum engagement through strong reactions, debates, and responses.
+
+ENGAGEMENT BAIT CHARACTERISTICS:
+- Controversial statements that provoke strong reactions
+- Polarizing opinions that force people to pick sides
+- Deliberately provocative takes on common beliefs
+- Content designed to make people feel compelled to respond
+- Statements that challenge popular consensus
+- Use inflammatory but non-offensive language to spark debate
+
+ENGAGEMENT STRATEGY:
+- Make bold, divisive statements
+- Use provocative language that triggers responses
+- Present unpopular or contrarian opinions as fact
+- Create "us vs them" scenarios
+- Ask loaded questions with obvious bias
+- Use inflammatory but not offensive language
+
+CONTENT PATTERNS:
+- "Unpopular opinions"
+- "I don't care what anyone says: [provocative claim]"
+- "Most people are wrong about [topic]"
+- "Divisive statements"
+- "If you [action], you're [negative judgment]"
+- "Controversial opinions"
+
+PSYCHOLOGICAL TRIGGERS:
+- Appeal to superiority complex
+- Create in-group vs out-group dynamics
+- Use absolute statements (e.g., "always," "never") to invite disagreement
+- Present false dichotomies
+- Challenge widely held beliefs`,
+
+    examples: [
+      "Unpopular opinion: Remote work is just an excuse for lazy people who can't handle office discipline. Change my mind.",
+      "Most 'productivity gurus' on Twitter have never built anything meaningful in their lives. They just sell courses to other wannabe gurus.",
+      "If you're still using React in 2024, you're either behind the times or too scared to learn new tech. Vue and Svelte left you in the dust."
     ]
   }
 }
@@ -310,22 +354,58 @@ Return ONLY the single tweet with no additional formatting, quotes, or explanati
         }
       }
 
-      // Score the tweet
+      // Score the tweet - SKIP scoring for engagement bait
+      const isEngagementBait = contentMode === 'engagementBait'
+      let scoredTweet: ScoredTweet | {
+        content: string
+        viralScore: null
+        scores: {
+          authenticity: null
+          engagementPrediction: null
+          qualitySignals: null
+        }
+        insights: {
+          strengths: string[]
+          improvements: string[]
+          reasoning: string
+        }
+      }
+      
+      // Define scoring context (used in regeneration loop even for engagement bait)
       const scoringContext = {
         contentMode: contentMode as 'thoughtLeadership' | 'communityEngagement' | 'personalBrand' | 'valueFirst',
         targetAudience,
         tone,
         trainingExamples
       }
-
-      let [scoredTweet] = rankTweetsByViralPotential([cleanedTweet], scoringContext)
       
-      // Automatic feedback loop - regenerate if score is below 70
+      if (isEngagementBait) {
+        // For engagement bait, return without scoring
+        scoredTweet = {
+          content: cleanedTweet,
+          viralScore: null, // No viral score for engagement bait
+          scores: {
+            authenticity: null,
+            engagementPrediction: null,
+            qualitySignals: null
+          },
+          insights: {
+            strengths: ["Designed for maximum engagement"],
+            improvements: ["This is engagement bait - no scoring applied"],
+            reasoning: "Engagement bait content is not scored with the viral scoring system"
+          }
+        }
+      } else {
+        const scoredTweets = rankTweetsByViralPotential([cleanedTweet], scoringContext)
+        scoredTweet = scoredTweets[0]
+      }
+      
+      // Automatic feedback loop - regenerate if score is below 70 (only for non-engagement-bait)
       const VIRAL_SCORE_THRESHOLD = 70
       let regenerationAttempts = 0
       const MAX_REGENERATION_ATTEMPTS = 2
       
-      while (scoredTweet.viralScore < VIRAL_SCORE_THRESHOLD && regenerationAttempts < MAX_REGENERATION_ATTEMPTS) {
+      while (!isEngagementBait && scoredTweet.viralScore && scoredTweet.viralScore < VIRAL_SCORE_THRESHOLD && regenerationAttempts < MAX_REGENERATION_ATTEMPTS) {
         regenerationAttempts++
         
         // Generate feedback based on low scores
@@ -418,10 +498,11 @@ Focus on these specific improvements while maintaining the core message.`
       return NextResponse.json({ 
         tweets: [scoredTweet],
         totalGenerated: 1,
-        scoringEnabled: true,
+        scoringEnabled: !isEngagementBait, // Disable scoring display for engagement bait
         regenerationAttempts,
         finalScore: scoredTweet.viralScore,
-        improvedByRegeneration: regenerationAttempts > 0
+        improvedByRegeneration: regenerationAttempts > 0,
+        isEngagementBait: isEngagementBait // Flag to identify engagement bait tweets
       })
     }
     

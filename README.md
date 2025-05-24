@@ -60,6 +60,23 @@ Tweetalytics is an AI-powered social media optimization platform that transforms
 - **AI**: Anthropic Claude (content generation), OpenAI Whisper (transcription)
 - **Deployment**: Vercel with automatic deployments
 
+## 📁 Project Structure
+
+```
+auto-social/
+├── app/                    # Next.js App Router pages
+├── components/             # Reusable React components
+├── lib/                    # Utility functions and services
+├── database/               # Database setup and migrations
+│   ├── migrations/         # SQL schema files
+│   └── triggers/           # Database triggers
+├── docs/                   # Project documentation
+│   └── project/            # Technical documentation
+└── README.md              # This file
+```
+
+**For Developers**: See our complete [technical documentation](./docs/project/CODEBASE_OVERVIEW.md) for detailed architecture info.
+
 ## 🚀 Quick Start
 
 ### 1️⃣ **Try the Live Demo**

@@ -19,7 +19,7 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
   const [textIdea, setTextIdea] = useState('')
   const [tone, setTone] = useState('professional')
   const [targetAudience, setTargetAudience] = useState('')
-  const [contentMode, setContentMode] = useState<'thoughtLeadership' | 'communityEngagement' | 'personalBrand' | 'valueFirst'>('thoughtLeadership')
+  const [contentMode, setContentMode] = useState<'thoughtLeadership' | 'communityEngagement' | 'personalBrand' | 'valueFirst' | 'engagementBait'>('thoughtLeadership')
   const [isRecording, setIsRecording] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [activeTab, setActiveTab] = useState<'text' | 'voice'>('text')
@@ -173,7 +173,8 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
         viral_score: scoredTweet.viralScore,
         authenticity_score: scoredTweet.scores.authenticity,
         engagement_score: scoredTweet.scores.engagementPrediction,
-        quality_score: scoredTweet.scores.qualitySignals
+        quality_score: scoredTweet.scores.qualitySignals,
+        is_engagement_bait: contentMode === 'engagementBait'
       }))
 
       const { error: tweetsError } = await supabase
@@ -250,7 +251,8 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
         viral_score: scoredTweet.viralScore,
         authenticity_score: scoredTweet.scores.authenticity,
         engagement_score: scoredTweet.scores.engagementPrediction,
-        quality_score: scoredTweet.scores.qualitySignals
+        quality_score: scoredTweet.scores.qualitySignals,
+        is_engagement_bait: contentMode === 'engagementBait'
       }))
 
       const { error: tweetsError } = await supabase
@@ -329,7 +331,7 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
               <label className="form-label">
                 Content Mode <span className="text-gray-400 font-normal">(optimized for Twitter algorithm)</span>
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={() => setContentMode('thoughtLeadership')}
@@ -401,9 +403,27 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
                   </div>
                   <p className="text-xs text-gray-600">Tips & actionable advice</p>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setContentMode('engagementBait')}
+                  disabled={isGenerating}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200 col-span-2 lg:col-span-1',
+                    contentMode === 'engagementBait'
+                      ? 'border-red-500 bg-red-50 text-red-900'
+                      : 'border-red-200 bg-white text-red-700 hover:border-red-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">😈</span>
+                    <span className="font-medium text-sm">Engagement Bait</span>
+                  </div>
+                  <p className="text-xs text-red-600">Controversial & provocative</p>
+                </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Each mode uses specialized prompts optimized for different engagement patterns and Tweepcreed scoring.
+                Each mode uses specialized prompts optimized for different engagement patterns. ⚠️ Use engagement bait responsibly.
               </p>
             </div>
 
@@ -562,6 +582,24 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
                   </div>
                   <p className="text-xs text-gray-600">Tips & actionable advice</p>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setContentMode('engagementBait')}
+                  disabled={isGenerating || isRecording}
+                  className={cn(
+                    'p-3 rounded-lg border text-left transition-all duration-200 col-span-2',
+                    contentMode === 'engagementBait'
+                      ? 'border-red-500 bg-red-50 text-red-900'
+                      : 'border-red-200 bg-white text-red-700 hover:border-red-300'
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">😈</span>
+                    <span className="font-medium text-sm">Engagement Bait</span>
+                  </div>
+                  <p className="text-xs text-red-600">Controversial & provocative</p>
+                </button>
               </div>
             </div>
 
@@ -611,13 +649,23 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
             </div>
 
             {/* Mode-Specific Recording Tips */}
-            <div className="bg-indigo-50 rounded-lg p-4">
-              <h4 className="font-medium text-indigo-900 mb-3">
+            <div className={cn(
+              'rounded-lg p-4',
+              contentMode === 'engagementBait' ? 'bg-red-50' : 'bg-indigo-50'
+            )}>
+              <h4 className={cn(
+                'font-medium mb-3',
+                contentMode === 'engagementBait' ? 'text-red-900' : 'text-indigo-900'
+              )}>
                 💡 Recording Tips for {contentMode === 'thoughtLeadership' ? 'Thought Leadership' : 
                                      contentMode === 'communityEngagement' ? 'Community Engagement' :
-                                     contentMode === 'personalBrand' ? 'Personal Brand' : 'Value-First Content'}:
+                                     contentMode === 'personalBrand' ? 'Personal Brand' : 
+                                     contentMode === 'valueFirst' ? 'Value-First Content' : 'Engagement Bait'}:
               </h4>
-              <ul className="text-sm text-indigo-700 space-y-1">
+              <ul className={cn(
+                'text-sm space-y-1',
+                contentMode === 'engagementBait' ? 'text-red-700' : 'text-indigo-700'
+              )}>
                 {contentMode === 'thoughtLeadership' && (
                   <>
                     <li>• Share professional insights from your experience</li>
@@ -648,6 +696,14 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
                     <li>• Mention tools or resources you recommend</li>
                     <li>• Explain step-by-step processes</li>
                     <li>• Focus on helping others solve problems</li>
+                  </>
+                )}
+                {contentMode === 'engagementBait' && (
+                  <>
+                    <li>• Express controversial or unpopular opinions</li>
+                    <li>• Challenge widely accepted beliefs or practices</li>
+                    <li>• Make bold, divisive statements about your industry</li>
+                    <li>• ⚠️ Remember: Use responsibly and consider your brand</li>
                   </>
                 )}
               </ul>
