@@ -1,90 +1,63 @@
 'use client'
 
 import { useAuth } from '@/components/providers/AuthProvider'
-import { Fragment } from 'react'
-import { 
-  Home, 
-  BarChart3, 
-  Settings, 
-  Mic,
-  LogOut
-} from 'lucide-react'
-import Link from 'next/link'
+import { Sidebar, TopBar } from '@/components/ui/Navigation'
 import { usePathname } from 'next/navigation'
-
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Training', href: '/dashboard/training', icon: Mic },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-]
 
 interface DashboardLayoutProps {
   children: React.ReactNode
+  title?: string
+  subtitle?: string
+  actions?: React.ReactNode
 }
 
-export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const { user, signOut } = useAuth()
+export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ 
+  children, 
+  title, 
+  subtitle, 
+  actions 
+}) => {
+  const { user, loading } = useAuth()
   const pathname = usePathname()
+
+  // Auto-generate title from pathname if not provided
+  const autoTitle = title || (() => {
+    const path = pathname.split('/').pop()
+    if (path === 'dashboard') return 'Dashboard'
+    return path ? path.charAt(0).toUpperCase() + path.slice(1) : 'Dashboard'
+  })()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-indigo-200 border-t-indigo-600"></div>
+          <p className="text-gray-600 animate-pulse-subtle">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg">
-        <div className="flex h-16 items-center justify-center border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">Auto Social</h1>
-        </div>
-        
-        <nav className="mt-8 px-4">
-          <ul role="list" className="space-y-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <li key={item.name}>
-                  <Link
-                    href={item.href}
-                    className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 ${
-                        isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
-                      }`}
-                    />
-                    {item.name}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
+      {/* Sidebar Navigation */}
+      <Sidebar />
 
-        {/* User section */}
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.email}
-              </p>
+      {/* Main content area */}
+      <div className="lg:pl-72">
+        {/* Top bar */}
+        <TopBar 
+          title={autoTitle}
+          subtitle={subtitle}
+          actions={actions}
+        />
+
+        {/* Page content */}
+        <main className="min-h-[calc(100vh-64px)]">
+          <div className="section-padding content-padding">
+            <div className="mx-auto max-w-7xl animate-fade-in-up">
+              {children}
             </div>
-            <button
-              onClick={signOut}
-              className="ml-3 p-1 rounded-full text-gray-400 hover:text-gray-500"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="pl-64">
-        <main className="py-8">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {children}
           </div>
         </main>
       </div>

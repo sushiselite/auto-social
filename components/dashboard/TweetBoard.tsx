@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Edit, 
   RotateCcw, 
@@ -41,13 +41,15 @@ const RegenerationFeedbackInput: React.FC<{
       placeholder="Add feedback for regeneration..."
       value={localValue}
       onChange={handleChange}
-      className="w-full p-2 text-xs border rounded"
+      className="w-full p-2 text-xs border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
     />
   )
 }, (prevProps, nextProps) => {
   // Only re-render if tweetId changes (not value changes)
   return prevProps.tweetId === nextProps.tweetId
 })
+
+RegenerationFeedbackInput.displayName = 'RegenerationFeedbackInput'
 
 interface Tweet {
   id: string
@@ -93,6 +95,196 @@ const statusConfig = {
   }
 }
 
+// Memoized TweetCard component to prevent unnecessary re-renders
+interface TweetCardProps {
+  tweet: Tweet
+  editingTweet: string | null
+  editContent: string
+  regeneratingTweet: string | null
+  regenerateFeedback: { [key: string]: string }
+  onStartEdit: (tweetId: string, content: string) => void
+  onCancelEdit: () => void
+  onSaveEdit: (tweetId: string, content: string) => void
+  onUpdateEditContent: (content: string) => void
+  onRegenerateTweet: (tweet: Tweet) => void
+  onUpdateStatus: (tweetId: string, status: Tweet['status']) => void
+  onScheduleTweet: (tweetId: string) => void
+  onDeleteTweet: (tweetId: string) => void
+  onFeedbackChange: (tweetId: string, value: string) => void
+}
+
+const TweetCard = React.memo<TweetCardProps>(({ 
+  tweet, 
+  editingTweet, 
+  editContent, 
+  regeneratingTweet,
+  regenerateFeedback,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onUpdateEditContent,
+  onRegenerateTweet,
+  onUpdateStatus,
+  onScheduleTweet,
+  onDeleteTweet,
+  onFeedbackChange
+}) => {
+  const config = statusConfig[tweet.status]
+  const isEditing = editingTweet === tweet.id
+  const isRegenerating = regeneratingTweet === tweet.id
+
+  return (
+    <div className={`card-hover p-4 border-2 ${config.color} mb-3 transition-all duration-200`}>
+      <div className="flex items-start justify-between mb-2">
+        <span className={`badge ${config.badgeColor}`}>
+          {config.title}
+        </span>
+        <div className="flex gap-1">
+          {tweet.status === 'generated' && (
+            <>
+              <button
+                onClick={() => onStartEdit(tweet.id, tweet.content)}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 rounded"
+                title="Edit tweet"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onRegenerateTweet(tweet)}
+                disabled={isRegenerating}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 rounded disabled:opacity-50"
+                title="Regenerate tweet"
+              >
+                <RotateCcw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+              </button>
+            </>
+          )}
+          {tweet.status === 'approved' && (
+            <button
+              onClick={() => onScheduleTweet(tweet.id)}
+              className="p-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 rounded"
+              title="Schedule tweet"
+            >
+              <Calendar className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            onClick={() => onDeleteTweet(tweet.id)}
+            className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200 rounded"
+            title="Delete tweet"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {isEditing ? (
+        <div className="space-y-3">
+          <textarea
+            value={editContent}
+            onChange={(e) => onUpdateEditContent(e.target.value)}
+            className="input-field resize-none"
+            rows={3}
+            placeholder="Edit your tweet content..."
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={onCancelEdit}
+              className="btn-ghost btn-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSaveEdit(tweet.id, editContent)}
+              className="btn-primary btn-sm"
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-900 mb-3 leading-relaxed">{tweet.content}</p>
+      )}
+
+      {tweet.status === 'generated' && !isEditing && (
+        <div className="space-y-3">
+          <RegenerationFeedbackInput 
+            tweetId={tweet.id}
+            value={regenerateFeedback[tweet.id] || ''}
+            onFeedbackChange={onFeedbackChange}
+          />
+          <div className="flex justify-between gap-2">
+            <button
+              onClick={() => onUpdateStatus(tweet.id, 'in_review')}
+              className="btn-secondary btn-sm flex-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+            >
+              Move to Review
+            </button>
+            <button
+              onClick={() => onUpdateStatus(tweet.id, 'approved')}
+              className="btn-secondary btn-sm flex-1 bg-green-100 text-green-700 hover:bg-green-200"
+            >
+              Approve
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tweet.status === 'in_review' && (
+        <div className="flex justify-between gap-2">
+          <button
+            onClick={() => onUpdateStatus(tweet.id, 'generated')}
+            className="btn-secondary btn-sm flex-1 bg-blue-100 text-blue-700 hover:bg-blue-200"
+          >
+            Back to Generated
+          </button>
+          <button
+            onClick={() => onUpdateStatus(tweet.id, 'approved')}
+            className="btn-secondary btn-sm flex-1 bg-green-100 text-green-700 hover:bg-green-200"
+          >
+            Approve
+          </button>
+        </div>
+      )}
+
+      {tweet.status === 'approved' && (
+        <div className="flex justify-center mt-3">
+          <button
+            onClick={() => onUpdateStatus(tweet.id, 'published')}
+            className="btn-primary btn-sm gap-1"
+          >
+            <Send className="h-3 w-3" />
+            Publish Tweet
+          </button>
+        </div>
+      )}
+
+      {tweet.scheduled_time && (
+        <div className="mt-3 text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
+          Scheduled: {new Date(tweet.scheduled_time).toLocaleString()}
+        </div>
+      )}
+
+      <div className="mt-3 text-xs text-gray-400">
+        Created: {new Date(tweet.created_at).toLocaleDateString()}
+      </div>
+    </div>
+  )
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  return (
+    prevProps.tweet.id === nextProps.tweet.id &&
+    prevProps.tweet.content === nextProps.tweet.content &&
+    prevProps.tweet.status === nextProps.tweet.status &&
+    prevProps.editingTweet === nextProps.editingTweet &&
+    prevProps.editContent === nextProps.editContent &&
+    prevProps.regeneratingTweet === nextProps.regeneratingTweet &&
+    prevProps.regenerateFeedback[prevProps.tweet.id] === nextProps.regenerateFeedback[nextProps.tweet.id]
+  )
+})
+
+TweetCard.displayName = 'TweetCard'
+
 export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweetUpdate, onTweetDelete }) => {
   const { user } = useAuth()
   const [editingTweet, setEditingTweet] = useState<string | null>(null)
@@ -103,8 +295,23 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
   const [userPreferences, setUserPreferences] = useState<any>(null)
 
   // Stable callback for feedback changes
-  const handleFeedbackChange = React.useCallback((tweetId: string, value: string) => {
+  const handleFeedbackChange = useCallback((tweetId: string, value: string) => {
     setRegenerateFeedback(prev => ({ ...prev, [tweetId]: value }))
+  }, [])
+
+  // Stable callbacks for tweet actions
+  const handleStartEdit = useCallback((tweetId: string, content: string) => {
+    setEditingTweet(tweetId)
+    setEditContent(content)
+  }, [])
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingTweet(null)
+    setEditContent('')
+  }, [])
+
+  const handleUpdateEditContent = useCallback((content: string) => {
+    setEditContent(content)
   }, [])
 
   // Load user preferences
@@ -132,7 +339,7 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
     loadUserPreferences()
   }, [user])
 
-  const updateTweetStatus = async (tweetId: string, newStatus: Tweet['status']) => {
+  const updateTweetStatus = useCallback(async (tweetId: string, newStatus: Tweet['status']) => {
     try {
       const { data, error } = await supabase
         .from('tweets')
@@ -149,9 +356,9 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
       console.error('Error updating tweet status:', error)
       toast.error('Failed to update tweet status')
     }
-  }
+  }, [onTweetUpdate])
 
-  const updateTweetContent = async (tweetId: string, newContent: string) => {
+  const updateTweetContent = useCallback(async (tweetId: string, newContent: string) => {
     try {
       const { data, error } = await supabase
         .from('tweets')
@@ -164,14 +371,15 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
 
       onTweetUpdate(data)
       setEditingTweet(null)
+      setEditContent('')
       toast.success('Tweet updated successfully')
     } catch (error) {
       console.error('Error updating tweet:', error)
       toast.error('Failed to update tweet')
     }
-  }
+  }, [onTweetUpdate])
 
-  const regenerateTweet = async (tweet: Tweet) => {
+  const regenerateTweet = useCallback(async (tweet: Tweet) => {
     setRegeneratingTweet(tweet.id)
     setRegeneratingBoard(true)
     try {
@@ -199,12 +407,22 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
       })
 
       if (newTweets.length > 0) {
-        // Update the current tweet with the first generated option
-        await updateTweetContent(tweet.id, newTweets[0])
+        // Update the existing tweet with the first generated tweet
+        const { data, error } = await supabase
+          .from('tweets')
+          .update({ content: newTweets[0] })
+          .eq('id', tweet.id)
+          .select()
+          .single()
+
+        if (error) throw error
+
+        onTweetUpdate(data)
+        toast.success('Tweet regenerated successfully!')
+        
+        // Clear the feedback for this tweet
         setRegenerateFeedback(prev => ({ ...prev, [tweet.id]: '' }))
       }
-
-      toast.success('Tweet regenerated successfully')
     } catch (error) {
       console.error('Error regenerating tweet:', error)
       toast.error('Failed to regenerate tweet')
@@ -212,18 +430,17 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
       setRegeneratingTweet(null)
       setRegeneratingBoard(false)
     }
-  }
+  }, [user?.id, regenerateFeedback, userPreferences, onTweetUpdate])
 
-  const scheduleTweet = async (tweetId: string) => {
-    // Simple scheduling - set for next hour for demo
-    const scheduledTime = new Date(Date.now() + 60 * 60 * 1000).toISOString()
-    
+  const scheduleTweet = useCallback(async (tweetId: string) => {
     try {
+      // For now, just update status to published
+      // In the future, integrate with actual scheduling service
       const { data, error } = await supabase
         .from('tweets')
         .update({ 
-          scheduled_time: scheduledTime,
-          status: 'approved'
+          status: 'published',
+          scheduled_time: new Date().toISOString()
         })
         .eq('id', tweetId)
         .select()
@@ -232,18 +449,16 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
       if (error) throw error
 
       onTweetUpdate(data)
-      toast.success('Tweet scheduled for publication')
+      toast.success('Tweet scheduled successfully!')
     } catch (error) {
       console.error('Error scheduling tweet:', error)
       toast.error('Failed to schedule tweet')
     }
-  }
+  }, [onTweetUpdate])
 
-  const getStatusTweets = (status: Tweet['status']) => {
-    return tweets.filter(tweet => tweet.status === status)
-  }
+  const deleteTweet = useCallback(async (tweetId: string) => {
+    if (!window.confirm('Are you sure you want to delete this tweet?')) return
 
-  const deleteTweet = async (tweetId: string) => {
     try {
       const { error } = await supabase
         .from('tweets')
@@ -252,7 +467,6 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
 
       if (error) throw error
 
-      // Notify parent component to remove from state
       if (onTweetDelete) {
         onTweetDelete(tweetId)
       }
@@ -262,155 +476,16 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
       console.error('Error deleting tweet:', error)
       toast.error('Failed to delete tweet')
     }
-  }
+  }, [onTweetDelete])
 
-  const TweetCard = ({ tweet }: { tweet: Tweet }) => {
-    const config = statusConfig[tweet.status]
-    const isEditing = editingTweet === tweet.id
-    const isRegenerating = regeneratingTweet === tweet.id
-
-    return (
-      <div className={`p-4 rounded-lg border-2 ${config.color} mb-3`}>
-        <div className="flex items-start justify-between mb-2">
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${config.badgeColor}`}>
-            {config.title}
-          </span>
-          <div className="flex gap-1">
-            {tweet.status === 'generated' && (
-              <>
-                <button
-                  onClick={() => {
-                    setEditingTweet(tweet.id)
-                    setEditContent(tweet.content)
-                  }}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => regenerateTweet(tweet)}
-                  disabled={isRegenerating}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <RotateCcw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
-                </button>
-              </>
-            )}
-            {tweet.status === 'approved' && (
-              <button
-                onClick={() => scheduleTweet(tweet.id)}
-                className="p-1 text-gray-400 hover:text-gray-600"
-              >
-                <Calendar className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              onClick={() => deleteTweet(tweet.id)}
-              className="p-1 text-gray-400 hover:text-red-600"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {isEditing ? (
-          <div className="space-y-2">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full p-2 text-sm border rounded resize-none"
-              rows={3}
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setEditingTweet(null)}
-                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => updateTweetContent(tweet.id, editContent)}
-                className="px-3 py-1 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-900 mb-3">{tweet.content}</p>
-        )}
-
-        {tweet.status === 'generated' && !isEditing && (
-          <div className="space-y-2">
-            <RegenerationFeedbackInput 
-              key={`feedback-input-${tweet.id}`}
-              tweetId={tweet.id}
-              value={regenerateFeedback[tweet.id] || ''}
-              onFeedbackChange={handleFeedbackChange}
-            />
-            <div className="flex justify-between">
-              <button
-                onClick={() => updateTweetStatus(tweet.id, 'in_review')}
-                className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
-              >
-                Move to Review
-              </button>
-              <button
-                onClick={() => updateTweetStatus(tweet.id, 'approved')}
-                className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-              >
-                Approve
-              </button>
-            </div>
-          </div>
-        )}
-
-        {tweet.status === 'in_review' && (
-          <div className="flex justify-between">
-            <button
-              onClick={() => updateTweetStatus(tweet.id, 'generated')}
-              className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-            >
-              Back to Generated
-            </button>
-            <button
-              onClick={() => updateTweetStatus(tweet.id, 'approved')}
-              className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-            >
-              Approve
-            </button>
-          </div>
-        )}
-
-        {tweet.status === 'approved' && (
-          <div className="flex justify-center mt-3">
-            <button
-              onClick={() => updateTweetStatus(tweet.id, 'published')}
-              className="px-4 py-2 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 flex items-center gap-1"
-            >
-              <Send className="h-3 w-3" />
-              Move to Published
-            </button>
-          </div>
-        )}
-
-        {tweet.scheduled_time && (
-          <div className="mt-2 text-xs text-gray-500">
-            Scheduled: {new Date(tweet.scheduled_time).toLocaleString()}
-          </div>
-        )}
-
-        <div className="mt-2 text-xs text-gray-400">
-          Created: {new Date(tweet.created_at).toLocaleDateString()}
-        </div>
-      </div>
-    )
-  }
+  const getStatusTweets = useCallback((status: Tweet['status']) => {
+    return tweets.filter(tweet => tweet.status === status)
+  }, [tweets])
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
     )
   }
@@ -420,8 +495,8 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Tweet Management</h2>
         {regeneratingBoard && (
-          <div className="flex items-center gap-2 text-purple-600">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent"></div>
+          <div className="flex items-center gap-2 text-indigo-600">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
             <span className="text-sm font-medium">Regenerating tweet...</span>
           </div>
         )}
@@ -438,14 +513,30 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
               <div className="flex items-center gap-2">
                 <Icon className="h-5 w-5 text-gray-600" />
                 <h3 className="font-medium text-gray-900">{config.title}</h3>
-                <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                <span className="badge badge-secondary">
                   {statusTweets.length}
                 </span>
               </div>
               
               <div className="space-y-3 min-h-[200px]">
                 {statusTweets.map((tweet) => (
-                  <TweetCard key={tweet.id} tweet={tweet} />
+                  <TweetCard 
+                    key={tweet.id} 
+                    tweet={tweet}
+                    editingTweet={editingTweet}
+                    editContent={editContent}
+                    regeneratingTweet={regeneratingTweet}
+                    regenerateFeedback={regenerateFeedback}
+                    onStartEdit={handleStartEdit}
+                    onCancelEdit={handleCancelEdit}
+                    onSaveEdit={updateTweetContent}
+                    onUpdateEditContent={handleUpdateEditContent}
+                    onRegenerateTweet={regenerateTweet}
+                    onUpdateStatus={updateTweetStatus}
+                    onScheduleTweet={scheduleTweet}
+                    onDeleteTweet={deleteTweet}
+                    onFeedbackChange={handleFeedbackChange}
+                  />
                 ))}
                 
                 {statusTweets.length === 0 && (

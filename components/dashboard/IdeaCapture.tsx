@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Mic, Plus, Square } from 'lucide-react'
+import { Mic, Plus, Square, Sparkles, Type, Volume2 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { generateTweets, generateTweetFromVoice } from '@/lib/ai-client'
 import { supabase } from '@/lib/supabase'
 import { ensureUserExists } from '@/lib/user-utils'
+import { ButtonLoading, LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 interface IdeaCaptureProps {
@@ -18,8 +20,11 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
   const [tone, setTone] = useState('professional')
   const [isRecording, setIsRecording] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [activeTab, setActiveTab] = useState<'text' | 'voice'>('text')
+  const [recordingDuration, setRecordingDuration] = useState(0)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load user preferences on mount
   useEffect(() => {
@@ -45,6 +50,32 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
 
     loadUserPreferences()
   }, [user])
+
+  // Timer for recording duration
+  useEffect(() => {
+    if (isRecording) {
+      timerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1)
+      }, 1000)
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+      setRecordingDuration(0)
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [isRecording])
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
   const startRecording = async () => {
     try {
@@ -85,9 +116,10 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
 
       mediaRecorder.start()
       setIsRecording(true)
+      toast.success('Recording started!')
     } catch (error) {
       console.error('Error starting recording:', error)
-      toast.error('Failed to start recording')
+      toast.error('Failed to start recording. Please check microphone permissions.')
     }
   }
 
@@ -146,7 +178,7 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
       if (tweetsError) throw tweetsError
 
       onNewTweets(tweetsData)
-      toast.success(`Generated ${generatedTweets.length} tweets from your voice memo!`)
+      toast.success(`Generated ${generatedTweets.length} tweets from your voice memo! 🎉`)
     } catch (error) {
       console.error('Error processing voice idea:', error)
       toast.error('Failed to generate tweets from voice')
@@ -210,7 +242,7 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
 
       onNewTweets(tweetsData)
       setTextIdea('')
-      toast.success(`Generated ${generatedTweets.length} tweets from your idea!`)
+      toast.success(`Generated ${generatedTweets.length} tweets from your idea! ✨`)
     } catch (error) {
       console.error('Error processing text idea:', error)
       toast.error('Failed to generate tweets from text')
@@ -220,94 +252,172 @@ export const IdeaCapture: React.FC<IdeaCaptureProps> = ({ onNewTweets }) => {
   }
 
   return (
-    <div className="card">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Capture New Idea</h2>
-      
-      <div className="space-y-4">
-        {/* Text Input */}
+    <div className="card relative overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+          <Sparkles className="h-5 w-5 text-white" />
+        </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Type your idea
-          </label>
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <textarea
-                value={textIdea}
-                onChange={(e) => setTextIdea(e.target.value)}
-                placeholder="What's on your mind? Describe your tweet idea..."
-                className="input-field resize-none"
-                rows={3}
-                disabled={isGenerating}
-              />
-              <button
-                onClick={handleTextIdea}
-                disabled={!textIdea.trim() || isGenerating}
-                className="btn-primary h-fit"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+          <h2 className="text-xl font-semibold text-gray-900">Capture New Idea</h2>
+          <p className="text-sm text-gray-600">Transform your thoughts into viral tweets</p>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6">
+        <button
+          onClick={() => setActiveTab('text')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200',
+            activeTab === 'text'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          )}
+        >
+          <Type className="h-4 w-4" />
+          Type Idea
+        </button>
+        <button
+          onClick={() => setActiveTab('voice')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200',
+            activeTab === 'voice'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          )}
+        >
+          <Volume2 className="h-4 w-4" />
+          Voice Memo
+        </button>
+      </div>
+
+      {/* Content Area */}
+      <div className="space-y-6">
+        {activeTab === 'text' && (
+          <div className="space-y-4 animate-fade-in">
+            {/* Text Input */}
+            <div className="form-group">
+              <label className="form-label">
+                What's on your mind?
+              </label>
+              <div className="relative">
+                <textarea
+                  value={textIdea}
+                  onChange={(e) => setTextIdea(e.target.value)}
+                  placeholder="Share your thoughts, insights, or ideas that you'd like to turn into engaging tweets..."
+                  className="input-field resize-none pr-20"
+                  rows={4}
+                  disabled={isGenerating}
+                  maxLength={500}
+                />
+                <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+                  {textIdea.length}/500
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-500">
-                {textIdea.length} characters
-              </span>
+
+            {/* Tone Selection */}
+            <div className="form-group">
+              <label className="form-label">Tone & Style</label>
               <select
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
-                className="text-xs border border-gray-300 rounded px-2 py-1"
+                className="input-field"
                 disabled={isGenerating}
               >
-                <option value="professional">Professional</option>
-                <option value="casual">Casual</option>
-                <option value="humorous">Humorous</option>
-                <option value="educational">Educational</option>
-                <option value="inspirational">Inspirational</option>
+                <option value="professional">🏢 Professional</option>
+                <option value="casual">😊 Casual</option>
+                <option value="humorous">😄 Humorous</option>
+                <option value="educational">📚 Educational</option>
+                <option value="inspirational">✨ Inspirational</option>
               </select>
             </div>
-          </div>
-        </div>
 
-        {/* Voice Recording */}
-        <div className="border-t pt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Or record a voice memo
-          </label>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={isGenerating}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                isRecording
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-primary-600 hover:bg-primary-700 text-white'
-              }`}
+            {/* Generate Button */}
+            <ButtonLoading
+              onClick={handleTextIdea}
+              loading={isGenerating}
+              loadingText="Generating tweets..."
+              disabled={!textIdea.trim()}
+              className="w-full btn-lg"
             >
-              {isRecording ? (
-                <>
-                  <Square className="h-4 w-4" />
-                  Stop Recording
-                </>
-              ) : (
-                <>
-                  <Mic className="h-4 w-4" />
-                  Start Recording
-                </>
-              )}
-            </button>
-            
-            {isRecording && (
-              <div className="flex items-center gap-2 text-red-600">
-                <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
-                Recording...
-              </div>
-            )}
+              <Sparkles className="h-5 w-5" />
+              Generate Tweets
+            </ButtonLoading>
           </div>
-        </div>
+        )}
 
+        {activeTab === 'voice' && (
+          <div className="space-y-6 animate-fade-in">
+            {/* Recording Interface */}
+            <div className="text-center">
+              <div className={cn(
+                'relative mx-auto w-32 h-32 rounded-full flex items-center justify-center transition-all duration-300',
+                isRecording 
+                  ? 'bg-red-100 animate-pulse-subtle' 
+                  : 'bg-indigo-100 hover:bg-indigo-200'
+              )}>
+                {isRecording && (
+                  <div className="absolute inset-0 rounded-full border-4 border-red-400 animate-ping" />
+                )}
+                <button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isGenerating}
+                  className={cn(
+                    'w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl',
+                    isRecording
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  )}
+                >
+                  {isRecording ? (
+                    <Square className="h-8 w-8" />
+                  ) : (
+                    <Mic className="h-8 w-8" />
+                  )}
+                </button>
+              </div>
+
+              <div className="mt-4">
+                {isRecording ? (
+                  <div className="space-y-2">
+                    <p className="text-lg font-medium text-red-600">Recording...</p>
+                    <p className="text-2xl font-mono text-gray-900">{formatDuration(recordingDuration)}</p>
+                    <p className="text-sm text-gray-500">Speak naturally about your ideas</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-lg font-medium text-gray-900">Ready to record</p>
+                    <p className="text-sm text-gray-500">Click the microphone to start recording your voice memo</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recording Tips */}
+            <div className="bg-indigo-50 rounded-lg p-4">
+              <h4 className="font-medium text-indigo-900 mb-2">💡 Recording Tips:</h4>
+              <ul className="text-sm text-indigo-700 space-y-1">
+                <li>• Speak clearly and at a normal pace</li>
+                <li>• Share your thoughts, opinions, or insights</li>
+                <li>• Mention any specific topics or themes</li>
+                <li>• Keep it under 2 minutes for best results</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Generating State */}
         {isGenerating && (
-          <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-            <span className="ml-2 text-gray-600">Generating tweets...</span>
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center rounded-xl">
+            <div className="text-center space-y-4">
+              <LoadingSpinner size="xl" variant="primary" />
+              <div>
+                <p className="font-medium text-gray-900">Generating your tweets...</p>
+                <p className="text-sm text-gray-600">Our AI is crafting engaging content from your idea</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
