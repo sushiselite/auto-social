@@ -36,6 +36,11 @@ Tweetalytics is an AI-powered social media optimization platform that transforms
 - Learns your unique writing style
 - Generates multiple variations
 
+### 🐦 **Twitter Integration**
+- Import your top-performing tweets
+- Auto-train AI on your writing style
+- Engagement-based tweet selection
+
 </td>
 <td width="50%">
 
@@ -109,6 +114,7 @@ The application is fully functional with real AI integration and smart fallback 
 - ✅ Voice recording and OpenAI Whisper transcription
 - ✅ AI tweet generation with Anthropic Claude API
 - ✅ Training system for personalized AI responses
+- ✅ Twitter integration for importing top-performing tweets
 - ✅ Analytics dashboard with performance tracking
 - ✅ Responsive design with modern UI/UX
 - ✅ Smart API status monitoring with fallbacks
@@ -169,7 +175,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔮 Roadmap
 
-- [ ] **Direct Twitter Integration**: Post directly to Twitter
+- [x] **Twitter Integration**: Import top-performing tweets for training
+- [ ] **Direct Twitter Posting**: Post directly to Twitter
 - [ ] **Multi-Platform Support**: LinkedIn, Facebook, Instagram
 - [ ] **Advanced Analytics**: Detailed engagement insights
 - [ ] **Team Collaboration**: Multi-user workspaces

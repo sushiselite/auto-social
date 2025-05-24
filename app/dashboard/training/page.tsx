@@ -6,7 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { ensureUserExists } from '@/lib/user-utils'
 import { formatDate } from '@/lib/utils'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Twitter, X, TrendingUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface TrainingExample {
@@ -21,6 +21,9 @@ export default function TrainingPage() {
   const [newExample, setNewExample] = useState('')
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
+  const [showTwitterModal, setShowTwitterModal] = useState(false)
+  const [twitterUsername, setTwitterUsername] = useState('')
+  const [importing, setImporting] = useState(false)
 
   const fetchExamples = useCallback(async () => {
     if (!user) return
@@ -102,7 +105,61 @@ export default function TrainingPage() {
     }
   }
 
+  const importFromTwitter = async () => {
+    if (!twitterUsername.trim()) {
+      toast.error('Please enter your Twitter username')
+      return
+    }
+
+    if (examples.length >= 10) {
+      toast.error('You already have the maximum of 10 training examples')
+      return
+    }
+
+    setImporting(true)
+    try {
+      const response = await fetch('/api/import-twitter-tweets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user?.id,
+          twitterUsername: twitterUsername.trim().replace('@', '') // Remove @ if present
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to import tweets')
+      }
+
+      // Refresh the examples list
+      await fetchExamples()
+      
+      setShowTwitterModal(false)
+      setTwitterUsername('')
+      
+      toast.success(`Successfully imported ${data.imported} top-performing tweets!`, {
+        duration: 5000
+      })
+
+      // Show details about imported tweets
+      if (data.topTweets && data.topTweets.length > 0) {
+        console.log('Imported tweets:', data.topTweets)
+      }
+
+    } catch (error) {
+      console.error('Error importing from Twitter:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to import tweets from Twitter')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
+    <>
     <DashboardLayout>
       <div className="space-y-6">
         <div>
@@ -114,9 +171,19 @@ export default function TrainingPage() {
 
         {/* Add new example */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Add Training Example</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Add Training Example</h2>
+            <button
+              onClick={() => setShowTwitterModal(true)}
+              disabled={examples.length >= 10}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Twitter className="h-4 w-4" />
+              Link Twitter
+            </button>
+          </div>
           <p className="text-sm text-gray-600 mb-4">
-            Add examples of your writing style. These can be tweets, posts, or any content that represents how you communicate (up to 1000 characters). Maximum 10 examples.
+            Add examples of your writing style manually, or link your Twitter account to automatically import your top-performing tweets. Maximum 10 examples.
           </p>
           <div className="space-y-4">
             <div>
@@ -214,5 +281,95 @@ export default function TrainingPage() {
         )}
       </div>
     </DashboardLayout>
+
+    {/* Twitter Import Modal */}
+    {showTwitterModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Twitter className="h-5 w-5 text-blue-500" />
+              <h3 className="text-lg font-semibold text-gray-900">Link Twitter Account</h3>
+            </div>
+            <button
+              onClick={() => setShowTwitterModal(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-600 mb-4">
+                We&apos;ll automatically import your top 10 performing tweets to train the AI on your writing style.
+              </p>
+              
+              <div className="bg-blue-50 rounded-lg p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-blue-800">
+                    <p className="font-medium mb-1">How we select tweets:</p>
+                    <ul className="space-y-0.5">
+                      <li>• Likes, retweets, replies, and quotes are analyzed</li>
+                      <li>• Only original tweets (no retweets or replies)</li>
+                      <li>• Top 10 by engagement score</li>
+                      <li>• Automatically added to your training data</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Twitter Username
+              </label>
+              <input
+                type="text"
+                value={twitterUsername}
+                onChange={(e) => setTwitterUsername(e.target.value)}
+                placeholder="Enter your Twitter username (without @)"
+                className="input-field"
+                disabled={importing}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Example: elonmusk (don&apos;t include the @ symbol)
+              </p>
+            </div>
+
+            <div className="text-xs text-gray-500">
+              Available slots: {Math.max(0, 10 - examples.length)} / 10
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowTwitterModal(false)}
+                className="flex-1 btn-ghost"
+                disabled={importing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={importFromTwitter}
+                disabled={importing || !twitterUsername.trim() || examples.length >= 10}
+                className="flex-1 btn-primary flex items-center justify-center gap-2"
+              >
+                {importing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Twitter className="h-4 w-4" />
+                    Import Tweets
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 } 
