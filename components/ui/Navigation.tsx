@@ -13,7 +13,8 @@ import {
   X,
   Sparkles,
   User,
-  FileText
+  FileText,
+  ScrollText
 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 
@@ -23,6 +24,12 @@ const navigation = [
     href: '/dashboard', 
     icon: Home,
     description: 'Overview and recent activity'
+  },
+  { 
+    name: 'Long-Form Content', 
+    href: '/dashboard/transcripts', 
+    icon: ScrollText,
+    description: 'Transform transcripts to tweets'
   },
   { 
     name: 'Training', 

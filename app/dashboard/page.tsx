@@ -10,7 +10,7 @@ import { PageLoading } from '@/components/ui/LoadingSpinner'
 import { supabase } from '@/lib/supabase'
 import { formatRelativeTime } from '@/lib/utils'
 import toast from 'react-hot-toast'
-import { BarChart3, ArrowRight, Sparkles, TrendingUp, Clock, Zap } from 'lucide-react'
+import { BarChart3, ArrowRight, Sparkles, TrendingUp, Clock, Zap, FileText } from 'lucide-react'
 import Link from 'next/link'
 
 interface DashboardStats {
@@ -192,7 +192,7 @@ export default function Dashboard() {
             {/* Quick Actions */}
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Link
                   href="/dashboard/tweets"
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200 group"
@@ -207,6 +207,22 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition-colors duration-200" />
+                </Link>
+
+                <Link
+                  href="/dashboard/transcripts"
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors duration-200">
+                      <FileText className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">Long-Form Content</h4>
+                      <p className="text-sm text-gray-600">Transform transcripts</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 transition-colors duration-200" />
                 </Link>
 
                 <Link

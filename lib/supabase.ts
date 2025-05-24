@@ -141,6 +141,79 @@ export type Database = {
           created_at?: string
         }
       }
+      transcripts: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          content: string
+          content_type: string
+          character_count: number
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          content: string
+          content_type: string
+          character_count: number
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          content?: string
+          content_type?: string
+          character_count?: number
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      insights: {
+        Row: {
+          id: string
+          transcript_id: string
+          user_id: string
+          content: string
+          speaker_attribution: string | null
+          insight_type: string
+          order_index: number
+          is_selected: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          transcript_id: string
+          user_id: string
+          content: string
+          speaker_attribution?: string | null
+          insight_type?: string
+          order_index?: number
+          is_selected?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          transcript_id?: string
+          user_id?: string
+          content?: string
+          speaker_attribution?: string | null
+          insight_type?: string
+          order_index?: number
+          is_selected?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 } 
