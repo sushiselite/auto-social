@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
-import { supabase } from '@/lib/supabase'
 import { ExtractedInsight } from '@/app/api/extract-insights/route'
 import { 
   ArrowLeft, 
@@ -41,6 +40,13 @@ interface GeneratedTweetData {
     }
   }
   insightId: string
+}
+
+interface SavedInsight {
+  id: string
+  content: string
+  insight_type: string
+  speaker_attribution: string | null
 }
 
 type WizardStep = 'input' | 'insights' | 'generation' | 'complete'
@@ -213,79 +219,92 @@ export const TranscriptWizard: React.FC<TranscriptWizardProps> = ({ onComplete, 
 
       console.log('✅ Character count validation passed')
       
-      // Force refresh the Supabase session to ensure auth is working
-      console.log('🔄 Refreshing Supabase session...')
-      await supabase.auth.refreshSession()
-      const { data: { session } } = await supabase.auth.getSession()
-      console.log('📱 Current session:', session?.user?.id ? 'Valid' : 'Invalid')
-      
-      // Skip auth test and go directly to insert - the issue is RLS policy, not auth
-      console.log('🚀 Attempting direct insert (RLS policy should be fixed)...')
-      try {
-        const { data: transcriptData, error: transcriptError } = await supabase
-          .from('transcripts')
-          .insert({
-            user_id: user?.id,
-            title: title || 'Untitled Transcript',
-            content: transcript,
-            content_type: contentType,
-            character_count: transcript.length,
-            status: 'processing'
-          })
-          .select()
-          .single()
+      // Use API route to save transcript (bypasses frontend RLS issues)
+      console.log('🚀 Saving transcript via API route...')
+      const transcriptResponse = await fetch('/api/save-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          title: title || 'Untitled Transcript',
+          content: transcript,
+          contentType: contentType,
+          characterCount: transcript.length
+        })
+      })
 
-        console.log('📥 Direct insert result:', { data: transcriptData, error: transcriptError })
+      if (!transcriptResponse.ok) {
+        const errorData = await transcriptResponse.json()
+        throw new Error(`Failed to save transcript: ${errorData.error}`)
+      }
 
-        if (transcriptError) {
-          console.error('❌ Direct insert error details:', {
-            message: transcriptError.message,
-            details: transcriptError.details,
-            hint: transcriptError.hint,
-            code: transcriptError.code
-          })
-          throw transcriptError
-        }
+      const { transcript: transcriptData } = await transcriptResponse.json()
+      console.log('✅ Transcript saved successfully:', transcriptData.id)
+      setSavedTranscriptId(transcriptData.id)
 
-        console.log('✅ Transcript saved successfully:', transcriptData.id)
-        setSavedTranscriptId(transcriptData.id)
+      console.log('💡 Saving insights to database...')
+      // Save insights to database via API route
+      const insightRows = selectedInsights.map((insight, index) => ({
+        transcript_id: transcriptData.id,
+        user_id: user?.id,
+        content: insight.content,
+        speaker_attribution: insight.speaker_attribution,
+        insight_type: insight.insight_type,
+        order_index: index,
+        is_selected: true
+      }))
 
-        console.log('💡 Saving insights to database...')
-        // Save insights to database
-        const insightRows = selectedInsights.map((insight, index) => ({
-          transcript_id: transcriptData.id,
-          user_id: user?.id,
+      const insightsResponse = await fetch('/api/save-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ insights: insightRows })
+      })
+
+      if (!insightsResponse.ok) {
+        const errorData = await insightsResponse.json()
+        throw new Error(`Failed to save insights: ${errorData.error}`)
+      }
+
+      const { insights: savedInsights } = await insightsResponse.json()
+      console.log('✅ Insights saved:', savedInsights.length, savedInsights)
+
+      console.log('📚 Fetching training examples...')
+      // Get user's training examples via API route
+      const trainingResponse = await fetch('/api/get-training-examples', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
+      })
+
+      let trainingExamples: string[] = []
+      if (trainingResponse.ok) {
+        const { trainingExamples: examples } = await trainingResponse.json()
+        trainingExamples = examples
+      } else {
+        console.warn('Failed to fetch training examples, proceeding without them')
+      }
+      console.log('📚 Training examples found:', trainingExamples.length)
+
+      console.log('🤖 Calling tweet generation API...')
+      console.log('📤 API payload:', {
+        insights: savedInsights.map((insight: SavedInsight) => ({
+          id: insight.id,
           content: insight.content,
-          speaker_attribution: insight.speaker_attribution,
           insight_type: insight.insight_type,
-          order_index: index,
-          is_selected: true
-        }))
+          speaker_attribution: insight.speaker_attribution
+        })),
+        contentMode,
+        tone,
+        targetAudience: targetAudience.trim() || undefined,
+        trainingExamples
+      })
 
-        const { data: savedInsights, error: insightsError } = await supabase
-          .from('insights')
-          .insert(insightRows)
-          .select()
-
-        if (insightsError) {
-          console.error('❌ Insights save error:', insightsError)
-          throw insightsError
-        }
-        console.log('✅ Insights saved:', savedInsights.length, savedInsights)
-
-        console.log('📚 Fetching training examples...')
-        // Get user's training examples
-        const { data: trainingData } = await supabase
-          .from('training_examples')
-          .select('tweet_text')
-          .eq('user_id', user?.id)
-
-        const trainingExamples = trainingData?.map(example => example.tweet_text) || []
-        console.log('📚 Training examples found:', trainingExamples.length)
-
-        console.log('🤖 Calling tweet generation API...')
-        console.log('📤 API payload:', {
-          insights: savedInsights.map(insight => ({
+      // Generate tweets from insights
+      const response = await fetch('/api/generate-tweets-from-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insights: savedInsights.map((insight: SavedInsight) => ({
             id: insight.id,
             content: insight.content,
             insight_type: insight.insight_type,
@@ -296,97 +315,83 @@ export const TranscriptWizard: React.FC<TranscriptWizardProps> = ({ onComplete, 
           targetAudience: targetAudience.trim() || undefined,
           trainingExamples
         })
+      })
 
-        // Generate tweets from insights
-        const response = await fetch('/api/generate-tweets-from-insights', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            insights: savedInsights.map(insight => ({
-              id: insight.id,
-              content: insight.content,
-              insight_type: insight.insight_type,
-              speaker_attribution: insight.speaker_attribution
-            })),
-            contentMode,
-            tone,
-            targetAudience: targetAudience.trim() || undefined,
-            trainingExamples
-          })
-        })
-
-        console.log('📥 API response status:', response.status)
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error('❌ API error response:', errorText)
-          throw new Error(`Failed to generate tweets: ${response.status} ${errorText}`)
-        }
-
-        const tweetData = await response.json()
-        console.log('✅ Generated tweet data:', tweetData)
-
-        // Save tweets to database
-        const tweetsToInsert = tweetData.tweets.map((tweetWithInsight: GeneratedTweetData) => ({
-          user_id: user?.id,
-          transcript_id: transcriptData.id,
-          insight_id: tweetWithInsight.insightId,
-          content: tweetWithInsight.tweet.content,
-          status: 'generated',
-          viral_score: tweetWithInsight.tweet.viralScore,
-          authenticity_score: tweetWithInsight.tweet.scores.authenticity,
-          engagement_score: tweetWithInsight.tweet.scores.engagementPrediction,
-          quality_score: tweetWithInsight.tweet.scores.qualitySignals
-        }))
-
-        const { error: tweetsError } = await supabase
-          .from('tweets')
-          .insert(tweetsToInsert)
-
-        if (tweetsError) throw tweetsError
-
-        // Update transcript status
-        await supabase
-          .from('transcripts')
-          .update({ status: 'completed' })
-          .eq('id', transcriptData.id)
-
-        setGeneratedTweets(tweetData.tweets)
-        setCurrentStep('complete')
-        
-        if (tweetData.scoringEnabled) {
-          const avgScore = Math.round(
-            tweetData.tweets.reduce((sum: number, tweet: GeneratedTweetData) => sum + tweet.tweet.viralScore, 0) / tweetData.tweets.length
-          )
-          toast.success(`Generated ${tweetData.tweets.length} tweets! Average viral score: ${avgScore}/100 ✨`)
-        } else {
-          toast.success(`Generated ${tweetData.tweets.length} tweets from your insights! ✨`)
-        }
-        
-      } catch (error) {
-        console.error('Error generating tweets:', error)
-        toast.error('Failed to generate tweets. Please try again.')
-        
-        // Update transcript status to failed if we saved it
-        if (savedTranscriptId) {
-          await supabase
-            .from('transcripts')
-            .update({ status: 'failed' })
-            .eq('id', savedTranscriptId)
-        }
-      } finally {
-        setIsGeneratingTweets(false)
+      console.log('📥 API response status:', response.status)
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ API error response:', errorText)
+        throw new Error(`Failed to generate tweets: ${response.status} ${errorText}`)
       }
+
+      const tweetData = await response.json()
+      console.log('✅ Generated tweet data:', tweetData)
+
+      // Save tweets to database
+      const tweetsToInsert = tweetData.tweets.map((tweetWithInsight: GeneratedTweetData) => ({
+        user_id: user?.id,
+        transcript_id: transcriptData.id,
+        insight_id: tweetWithInsight.insightId,
+        content: tweetWithInsight.tweet.content,
+        status: 'generated',
+        viral_score: tweetWithInsight.tweet.viralScore,
+        authenticity_score: tweetWithInsight.tweet.scores.authenticity,
+        engagement_score: tweetWithInsight.tweet.scores.engagementPrediction,
+        quality_score: tweetWithInsight.tweet.scores.qualitySignals
+      }))
+
+      const tweetsResponse = await fetch('/api/save-tweets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tweets: tweetsToInsert })
+      })
+
+      if (!tweetsResponse.ok) {
+        const errorData = await tweetsResponse.json()
+        throw new Error(`Failed to save tweets: ${errorData.error}`)
+      }
+
+      // Update transcript status
+      const statusResponse = await fetch('/api/update-transcript-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcriptId: transcriptData.id, status: 'completed' })
+      })
+
+      if (!statusResponse.ok) {
+        console.warn('Failed to update transcript status to completed')
+      }
+
+      setGeneratedTweets(tweetData.tweets)
+      setCurrentStep('complete')
+      
+      if (tweetData.scoringEnabled) {
+        const avgScore = Math.round(
+          tweetData.tweets.reduce((sum: number, tweet: GeneratedTweetData) => sum + tweet.tweet.viralScore, 0) / tweetData.tweets.length
+        )
+        toast.success(`Generated ${tweetData.tweets.length} tweets! Average viral score: ${avgScore}/100 ✨`)
+      } else {
+        toast.success(`Generated ${tweetData.tweets.length} tweets from your insights! ✨`)
+      }
+      
     } catch (error) {
       console.error('Error generating tweets:', error)
       toast.error('Failed to generate tweets. Please try again.')
       
       // Update transcript status to failed if we saved it
       if (savedTranscriptId) {
-        await supabase
-          .from('transcripts')
-          .update({ status: 'failed' })
-          .eq('id', savedTranscriptId)
+        try {
+          await fetch('/api/update-transcript-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcriptId: savedTranscriptId, status: 'failed' })
+          })
+        } catch (statusError) {
+          console.warn('Failed to update transcript status to failed:', statusError)
+        }
       }
+    } finally {
+      setIsGeneratingTweets(false)
     }
   }
 
