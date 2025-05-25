@@ -213,6 +213,12 @@ export const TranscriptWizard: React.FC<TranscriptWizardProps> = ({ onComplete, 
 
       console.log('✅ Character count validation passed')
       
+      // Force refresh the Supabase session to ensure auth is working
+      console.log('🔄 Refreshing Supabase session...')
+      await supabase.auth.refreshSession()
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('📱 Current session:', session?.user?.id ? 'Valid' : 'Invalid')
+      
       // Skip auth test and go directly to insert - the issue is RLS policy, not auth
       console.log('🚀 Attempting direct insert (RLS policy should be fixed)...')
       try {
