@@ -24,10 +24,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
   KeyboardSensor,
   DragOverEvent,
-  useDndMonitor,
   rectIntersection,
 } from '@dnd-kit/core'
 import {
