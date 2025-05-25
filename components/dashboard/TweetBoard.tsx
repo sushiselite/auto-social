@@ -24,8 +24,11 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  closestCenter,
   KeyboardSensor,
+  DragOverEvent,
+  useDndMonitor,
+  rectIntersection,
 } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -206,12 +209,19 @@ const DraggableTweetCard = React.memo<DraggableTweetCardProps>(({
       style={style}
       className={`relative group ${isDragging ? 'z-50' : ''}`}
       {...attributes}
-      {...listeners}
     >
       <SimpleTweetCard
         tweet={tweet}
         {...props}
-        className="cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-lg"
+        className={`cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-lg ${
+          isSortableDragging ? 'shadow-2xl scale-105' : ''
+        }`}
+      />
+      {/* Invisible drag handle overlay */}
+      <div 
+        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        {...listeners}
+        style={{ touchAction: 'none' }}
       />
     </div>
   )
@@ -226,6 +236,7 @@ interface DroppableColumnProps {
   title: string
   count: number
   icon: React.ElementType
+  isOver?: boolean
 }
 
 const DroppableColumn: React.FC<DroppableColumnProps> = ({ 
@@ -233,11 +244,14 @@ const DroppableColumn: React.FC<DroppableColumnProps> = ({
   children, 
   title, 
   count, 
-  icon: Icon 
+  icon: Icon,
+  isOver: isOverProp = false
 }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: `column-${status}`,
   })
+
+  const isOverAny = isOver || isOverProp
 
   return (
     <div className="flex flex-col h-full">
@@ -270,35 +284,36 @@ const DroppableColumn: React.FC<DroppableColumnProps> = ({
         </div>
       </div>
       
-      {/* Drop Zone */}
+      {/* Drop Zone - Made larger and more reliable */}
       <div 
         ref={setNodeRef}
-        className={`flex-1 min-h-[500px] p-4 rounded-xl border-2 border-dashed transition-all duration-200 ${
-          isOver 
+        className={`flex-1 min-h-[600px] p-4 rounded-xl border-2 border-dashed transition-all duration-200 ${
+          isOverAny
             ? 'border-indigo-400 bg-indigo-50 shadow-lg' 
             : 'border-gray-200 bg-white hover:border-gray-300'
         }`}
+        style={{ minHeight: '600px' }} // Ensure large drop target
       >
-        <div className="space-y-4">
+        <div className="space-y-4 min-h-full">
           {children}
         </div>
         
         {count === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <div className={`w-16 h-16 rounded-full mb-4 flex items-center justify-center ${
-              isOver ? 'bg-indigo-100' : 'bg-gray-100'
+              isOverAny ? 'bg-indigo-100' : 'bg-gray-100'
             }`}>
               <Icon className={`h-8 w-8 ${
-                isOver ? 'text-indigo-500' : 'text-gray-400'
+                isOverAny ? 'text-indigo-500' : 'text-gray-400'
               }`} />
             </div>
             <p className={`text-lg font-medium mb-2 ${
-              isOver ? 'text-indigo-600' : 'text-gray-500'
+              isOverAny ? 'text-indigo-600' : 'text-gray-500'
             }`}>
-              {isOver ? 'Drop tweet here' : `No ${title.toLowerCase()} tweets`}
+              {isOverAny ? 'Drop tweet here' : `No ${title.toLowerCase()} tweets`}
             </p>
             <p className="text-sm text-gray-400 max-w-xs">
-              {isOver 
+              {isOverAny
                 ? `Release to move tweet to ${title.toLowerCase()}`
                 : `Drag tweets here to mark them as ${title.toLowerCase()}`
               }
@@ -317,12 +332,13 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
   const [activeId, setActiveId] = useState<string | null>(null)
   const [selectedTweet, setSelectedTweet] = useState<Tweet | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [overId, setOverId] = useState<string | null>(null)
 
-  // Drag and drop sensors
+  // Drag and drop sensors with improved configuration
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 10, // Increased distance to avoid accidental drags
       },
     }),
     useSensor(KeyboardSensor, {
@@ -335,20 +351,46 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
     setActiveId(event.active.id as string)
   }, [])
 
-  // Handle drag end
+  // Handle drag over
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { over } = event
+    setOverId(over ? over.id as string : null)
+  }, [])
+
+  // Handle drag end with improved logic
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
+    setOverId(null)
 
     if (!over) return
 
     const activeId = active.id as string
     const overId = over.id as string
 
-    // If dropping on a column, extract the status
-    const targetStatus = overId.startsWith('column-') 
-      ? overId.replace('column-', '') as Tweet['status']
-      : tweets.find(t => t.id === overId)?.status
+    // Determine target status from the drop target
+    let targetStatus: Tweet['status'] | null = null
+
+    // Check if dropping directly on a column
+    if (overId.startsWith('column-')) {
+      targetStatus = overId.replace('column-', '') as Tweet['status']
+    } else {
+      // If dropping on a tweet, find which column that tweet belongs to
+      const targetTweet = tweets.find(t => t.id === overId)
+      if (targetTweet) {
+        targetStatus = targetTweet.status
+      } else {
+        // Fallback: find the column by checking which droppable area we're over
+        const dropZones = ['generated', 'in_review', 'approved', 'published']
+        for (const status of dropZones) {
+          const columnTweets = tweets.filter(t => t.status === status)
+          if (columnTweets.some(t => t.id === overId)) {
+            targetStatus = status as Tweet['status']
+            break
+          }
+        }
+      }
+    }
 
     if (!targetStatus) return
 
@@ -533,8 +575,9 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={rectIntersection}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="space-y-6">
@@ -557,6 +600,7 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
               const config = statusConfig[status]
               const statusTweets = getStatusTweets(status)
               const Icon = config.icon
+              const isColumnOver = overId === `column-${status}`
 
               return (
                 <DroppableColumn
@@ -565,11 +609,11 @@ export const TweetBoard: React.FC<TweetBoardProps> = ({ tweets, loading, onTweet
                   title={config.title}
                   count={statusTweets.length}
                   icon={Icon}
+                  isOver={isColumnOver}
                 >
                   <SortableContext
                     items={statusTweets.map(tweet => tweet.id)}
                     strategy={verticalListSortingStrategy}
-                    id={`column-${status}`}
                   >
                     {statusTweets.map((tweet) => (
                       <DraggableTweetCard
