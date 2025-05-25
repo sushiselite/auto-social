@@ -15,7 +15,7 @@ import { TweetModal } from '@/components/ui/TweetModal'
 import { formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
-// Drag and Drop imports
+// Drag and Drop imports - fixed build errors
 import {
   DndContext,
   DragEndEvent,
