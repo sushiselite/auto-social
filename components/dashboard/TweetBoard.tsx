@@ -117,15 +117,25 @@ const SimpleTweetCard = React.memo<SimpleTweetCardProps>(({
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault() // Prevent any drag behavior
     if (onTweetDelete) {
       onTweetDelete(tweet.id)
     }
   }
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger click if we're clicking on the delete button
+    const target = e.target as HTMLElement
+    if (target.closest('button')) {
+      return
+    }
+    onTweetClick(tweet)
+  }
+
   return (
     <div 
       className={`bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 group relative ${className}`}
-      onClick={() => onTweetClick(tweet)}
+      onClick={handleCardClick}
     >
       <div className="p-4">
         {/* Header with status */}
@@ -201,12 +211,27 @@ const DraggableTweetCard = React.memo<DraggableTweetCardProps>(({
     opacity: isDragging || isSortableDragging ? 0.5 : 1,
   }
 
+  // Handle click events - prevent drag when clicking on interactive elements
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Don't start drag if clicking on buttons or other interactive elements
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('[role="button"]')) {
+      e.stopPropagation()
+      return
+    }
+  }, [])
+
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        touchAction: 'manipulation' // Allow clicks but prevent default touch behaviors during drag
+      }}
       className={`relative group ${isDragging ? 'z-50' : ''}`}
       {...attributes}
+      {...listeners}
+      onMouseDown={handleMouseDown}
     >
       <SimpleTweetCard
         tweet={tweet}
@@ -214,12 +239,6 @@ const DraggableTweetCard = React.memo<DraggableTweetCardProps>(({
         className={`cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-lg ${
           isSortableDragging ? 'shadow-2xl scale-105' : ''
         }`}
-      />
-      {/* Invisible drag handle overlay */}
-      <div 
-        className="absolute inset-0 cursor-grab active:cursor-grabbing"
-        {...listeners}
-        style={{ touchAction: 'none' }}
       />
     </div>
   )
