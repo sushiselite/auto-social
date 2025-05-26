@@ -69,17 +69,21 @@ ${insight.speaker_attribution ? `ORIGINAL SPEAKER: ${insight.speaker_attribution
 ${targetAudience ? `TARGET AUDIENCE: ${targetAudience}` : ''}
 
 ${trainingExamples.length > 0 ? `
-PERSONAL VOICE & STYLE EXAMPLES:
-Analyze these examples to understand the author's writing style, tone, and personality. Match these patterns exactly:
+PERSONAL VOICE & STYLE TRAINING:
+Here are examples of the author's authentic writing style. Study these carefully and replicate the patterns:
 
-${trainingExamples.slice(0, 3).map((example: string, index: number) => `${index + 1}. "${example}"`).join('\n')}
+${trainingExamples.map((example: string, index: number) => `${index + 1}. "${example}"`).join('\n')}
 
-STYLE ANALYSIS:
-- Notice the sentence structure, length, and rhythm
-- Observe the vocabulary level and word choices  
-- Pay attention to how opinions are expressed
-- Match the level of formality/casualness
-- Replicate the conversational style and personality` : ''}
+${analyzeWritingStyle(trainingExamples)}
+
+CRITICAL: The generated tweet MUST sound like it was written by the same person who wrote these examples. Match their voice, rhythm, and style exactly.
+
+STYLE REPLICATION PROCESS:
+1. Identify the author's unique voice patterns from the examples above
+2. Note their preferred sentence structures and word choices
+3. Match their level of formality and emotional expression
+4. Replicate their engagement style and personality traits
+5. Ensure the output feels authentically written by the same person` : ''}
 
 TWEET GENERATION REQUIREMENTS:
 
@@ -232,4 +236,47 @@ function getInsightTypeGuidance(insightType: string): string {
     lesson_learned: "Share this lesson as a personal growth moment that others can relate to and learn from"
   }
   return guidance[insightType as keyof typeof guidance] || guidance.key_point
+}
+
+function analyzeWritingStyle(trainingExamples: string[]): string {
+  if (trainingExamples.length === 0) return ''
+  
+  // Analyze patterns across all examples
+  const avgLength = Math.round(trainingExamples.reduce((sum, ex) => sum + ex.length, 0) / trainingExamples.length)
+  
+  // Common patterns analysis
+  const hasPersonalPronouns = trainingExamples.some(ex => /\b(I|my|me|personally)\b/i.test(ex))
+  const hasQuestions = trainingExamples.some(ex => ex.includes('?'))
+  const hasEmojis = trainingExamples.some(ex => /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/u.test(ex))
+  const hasHashtags = trainingExamples.some(ex => ex.includes('#'))
+  const hasNumbers = trainingExamples.some(ex => /\d/.test(ex))
+  
+  // Sentence structure analysis
+  const shortSentences = trainingExamples.filter(ex => ex.split(/[.!?]/).length <= 2).length
+  const longSentences = trainingExamples.filter(ex => ex.split(/[.!?]/).length > 3).length
+  
+  // Tone indicators
+  const hasExclamation = trainingExamples.some(ex => ex.includes('!'))
+  const hasCasualLanguage = trainingExamples.some(ex => /\b(gonna|wanna|kinda|sorta|tbh|ngl)\b/i.test(ex))
+  const hasFormalLanguage = trainingExamples.some(ex => /\b(furthermore|however|therefore|consequently)\b/i.test(ex))
+  
+  return `
+EXTRACTED STYLE PATTERNS:
+- Average content length: ${avgLength} characters
+- Sentence structure: ${shortSentences > longSentences ? 'Prefers short, punchy sentences' : longSentences > shortSentences ? 'Uses longer, complex sentences' : 'Mixed sentence lengths'}
+- Personal voice: ${hasPersonalPronouns ? 'Uses personal pronouns frequently (I, my, me)' : 'More objective, less personal tone'}
+- Engagement style: ${hasQuestions ? 'Often asks questions to engage audience' : 'Primarily makes statements'}
+- Formality level: ${hasFormalLanguage ? 'Formal, professional language' : hasCasualLanguage ? 'Casual, conversational tone' : 'Balanced formality'}
+- Emotional expression: ${hasExclamation ? 'Uses exclamation points for emphasis' : 'More subdued emotional expression'}
+- Visual elements: ${hasEmojis ? 'Includes emojis' : 'Text-only style'}${hasHashtags ? ', Uses hashtags' : ''}
+- Data usage: ${hasNumbers ? 'Incorporates specific numbers/data' : 'Focuses on concepts over data'}
+
+REPLICATION INSTRUCTIONS:
+- Match the typical length of ${avgLength} characters
+- ${hasPersonalPronouns ? 'Use personal pronouns to maintain authentic voice' : 'Maintain objective tone without personal pronouns'}
+- ${hasQuestions ? 'Include engaging questions when appropriate' : 'Focus on declarative statements'}
+- ${hasCasualLanguage ? 'Use conversational, casual language' : hasFormalLanguage ? 'Maintain professional, formal tone' : 'Balance casual and professional language'}
+- ${hasExclamation ? 'Use exclamation points for emphasis and energy' : 'Keep punctuation subdued'}
+- ${hasEmojis ? 'Include relevant emojis sparingly' : 'Avoid emojis'}
+- ${hasNumbers ? 'Include specific numbers or data when relevant' : 'Focus on conceptual content'}`
 } 

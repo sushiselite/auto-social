@@ -50,8 +50,102 @@ export default function TrainingPage() {
     fetchExamples()
   }, [fetchExamples])
 
+  const validateTrainingExample = (text: string): { isValid: boolean; message?: string } => {
+    const trimmed = text.trim()
+    
+    // Length checks
+    if (trimmed.length < 20) {
+      return { isValid: false, message: 'Training examples should be at least 20 characters long for better style learning' }
+    }
+    
+    if (trimmed.length > 500) {
+      return { isValid: false, message: 'Training examples should be under 500 characters to focus on concise style patterns' }
+    }
+    
+    // Quality checks
+    if (trimmed.toLowerCase().includes('http') || trimmed.toLowerCase().includes('www.')) {
+      return { isValid: false, message: 'Avoid including links in training examples - focus on your writing style' }
+    }
+    
+    // Check for excessive hashtags
+    const hashtagCount = (trimmed.match(/#/g) || []).length
+    if (hashtagCount > 3) {
+      return { isValid: false, message: 'Too many hashtags - training examples should focus on your natural writing style' }
+    }
+    
+    // Check for promotional content
+    const promoWords = ['buy now', 'click here', 'dm me', 'link in bio', 'swipe up']
+    if (promoWords.some(word => trimmed.toLowerCase().includes(word))) {
+      return { isValid: false, message: 'Avoid promotional content in training examples - use authentic, personal content instead' }
+    }
+    
+    return { isValid: true }
+  }
+
+  const checkStyleDiversity = (newExample: string, existingExamples: TrainingExample[]): { isDiverse: boolean; suggestion?: string } => {
+    if (existingExamples.length === 0) return { isDiverse: true }
+    
+    const newText = newExample.toLowerCase()
+    const newLength = newExample.length
+    
+    // Check for similar length patterns
+    const avgLength = existingExamples.reduce((sum, ex) => sum + ex.tweet_text.length, 0) / existingExamples.length
+    const lengthDiff = Math.abs(newLength - avgLength)
+    
+    // Check for similar starting patterns
+    const newStart = newText.slice(0, 20)
+    const similarStarts = existingExamples.filter(ex => 
+      ex.tweet_text.toLowerCase().slice(0, 20) === newStart
+    ).length
+    
+    // Check for repeated phrases
+    const newWords = newText.split(' ')
+    const commonPhrases = existingExamples.filter(ex => {
+      const existingWords = ex.tweet_text.toLowerCase().split(' ')
+      const commonWords = newWords.filter(word => existingWords.includes(word) && word.length > 3)
+      return commonWords.length > newWords.length * 0.5 // More than 50% word overlap
+    }).length
+    
+    if (similarStarts > 0) {
+      return { 
+        isDiverse: false, 
+        suggestion: 'This example starts very similarly to an existing one. Try adding examples with different opening styles.' 
+      }
+    }
+    
+    if (commonPhrases > existingExamples.length * 0.3) {
+      return { 
+        isDiverse: false, 
+        suggestion: 'This example is very similar to your existing ones. Try adding content that shows different aspects of your writing style.' 
+      }
+    }
+    
+    if (lengthDiff < 20 && existingExamples.length > 3) {
+      return { 
+        isDiverse: false, 
+        suggestion: 'Consider adding examples of different lengths to show your range (short punchy tweets vs longer thoughts).' 
+      }
+    }
+    
+    return { isDiverse: true }
+  }
+
   const addExample = async () => {
     if (!newExample.trim()) return
+
+    // Validate the example
+    const validation = validateTrainingExample(newExample)
+    if (!validation.isValid) {
+      toast.error(validation.message || 'Invalid training example')
+      return
+    }
+
+    // Check for style diversity
+    const diversityCheck = checkStyleDiversity(newExample, examples)
+    if (!diversityCheck.isDiverse && examples.length > 2) {
+      toast.error(diversityCheck.suggestion || 'This example is too similar to existing ones')
+      return
+    }
 
     // Check if user already has 10 examples
     if (examples.length >= 10) {

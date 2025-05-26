@@ -98,23 +98,55 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate engagement score and sort by performance
-    const tweetsWithEngagement = tweets.map(tweet => {
-      const metrics = tweet.public_metrics
-      const engagementScore = 
-        metrics.like_count * 1 +
-        metrics.retweet_count * 3 +
-        metrics.reply_count * 2 +
-        metrics.quote_count * 2
+    // Filter and score tweets for training quality
+    const qualityTweets = tweets
+      .filter(tweet => {
+        // Filter out low-quality tweets
+        const text = tweet.text.toLowerCase()
+        const metrics = tweet.public_metrics
+        
+        // Must have some engagement
+        const totalEngagement = metrics.like_count + metrics.retweet_count + metrics.reply_count + metrics.quote_count
+        if (totalEngagement < 2) return false
+        
+        // Filter out promotional/spammy content
+        if (text.includes('http') || text.includes('www.')) return false
+        if (text.includes('buy now') || text.includes('click here')) return false
+        if (text.includes('dm me') || text.includes('link in bio')) return false
+        
+        // Must be substantial content (not just emoji or very short)
+        if (tweet.text.length < 30) return false
+        
+        // Avoid tweets that are mostly hashtags
+        const hashtagCount = (tweet.text.match(/#/g) || []).length
+        if (hashtagCount > 3) return false
+        
+        return true
+      })
+      .map(tweet => {
+        const metrics = tweet.public_metrics
+        
+        // Enhanced engagement scoring that favors quality interactions
+        const engagementScore = 
+          metrics.like_count * 1 +
+          metrics.retweet_count * 4 +  // Retweets are high-value
+          metrics.reply_count * 3 +    // Replies indicate discussion
+          metrics.quote_count * 5      // Quote tweets are highest value
+        
+        // Bonus for longer, more substantial content
+        const lengthBonus = tweet.text.length > 100 ? 10 : 0
+        
+        // Bonus for original thoughts (no mentions at start)
+        const originalityBonus = !tweet.text.startsWith('@') ? 5 : 0
 
-      return {
-        ...tweet,
-        engagementScore
-      }
-    })
+        return {
+          ...tweet,
+          engagementScore: engagementScore + lengthBonus + originalityBonus
+        }
+      })
 
     // Sort by engagement score and take top 10
-    const topTweets = tweetsWithEngagement
+    const topTweets = qualityTweets
       .sort((a, b) => b.engagementScore - a.engagementScore)
       .slice(0, 10)
 
